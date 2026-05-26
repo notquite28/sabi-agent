@@ -1,13 +1,13 @@
-# Rust Pi Agent Architecture
+# Sabi Agent Architecture
 
-This document describes the intended structure of the Rust implementation in `rust-pi-agent/`.
+This document describes the intended structure of the Rust implementation in `sabi-agent/`.
 
 ## Repository Layout
 
 ```text
-rust-agent/
+sabi-agent/
   pi/                 # Original TypeScript Pi agent reference. Do not modify.
-  rust-pi-agent/      # Rust learning implementation.
+  sabi-agent/         # Rust learning implementation.
   desktop/            # Future Tauri desktop frontend.
   ROADMAP.md          # Milestones and porting scope.
   docs/
@@ -17,7 +17,7 @@ rust-agent/
 ## Rust Crate Layout
 
 ```text
-rust-pi-agent/src/
+sabi-agent/src/
   lib.rs              # Reusable library entry point.
   main.rs             # CLI entry point.
   app.rs              # Top-level application flow.
@@ -93,7 +93,7 @@ Target layout:
 
 ```text
 desktop/
-  src-tauri/          # Tauri shell that calls rust-pi-agent library code.
+  src-tauri/          # Tauri shell that calls sabi-agent library code.
   src/                # Web UI.
     ChatPanel.tsx
     FileTree.tsx

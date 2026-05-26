@@ -2,20 +2,20 @@
 
 ## Scope
 
-- Active implementation is `rust-pi-agent/`; run Rust commands from that directory unless intentionally testing another CWD.
+- Active implementation is `sabi-agent/`; run Rust commands from that directory unless intentionally testing another CWD.
 - `pi/` is the original TypeScript Pi reference submodule. Do not modify it unless the user explicitly asks; it has its own `pi/AGENTS.md`.
 - Keep core Rust agent logic reusable behind `src/lib.rs`; `src/main.rs` should stay a thin CLI frontend.
 
 ## Read First
 
-- For current state and scope, read `README.md`, `rust-pi-agent/README.md`, and `ROADMAP.md`.
+- For current state and scope, read `README.md`, `sabi-agent/README.md`, and `ROADMAP.md`.
 - For architecture changes, also read `docs/ARCHITECTURE.md` and `docs/PORTING_NOTES.md`.
 - Every Rust source file should keep its top module doc comment with `Ported from:` and `Simplifications:` notes.
 
 ## Commands
 
-- Format: `cargo fmt` from `rust-pi-agent/`.
-- Compile check: `cargo check` from `rust-pi-agent/`.
+- Format: `cargo fmt` from `sabi-agent/`.
+- Compile check: `cargo check` from `sabi-agent/`.
 - CLI help: `cargo run -- --help`.
 - Interactive CLI: `cargo run`.
 - Resume latest non-empty session for the current CWD: `cargo run -- --resume`.
@@ -24,7 +24,7 @@
 
 ## Provider And Config
 
-- `.env` is loaded from the process current working directory via `dotenvy`; running with `--manifest-path` from another directory will not load `rust-pi-agent/.env`.
+- `.env` is loaded from the process current working directory via `dotenvy`; running with `--manifest-path` from another directory will not load `sabi-agent/.env`.
 - Expected local env keys are `OPENAI_API_KEY`, `RUST_PI_MODEL`, and `RUST_PI_BASE_URL`; defaults target AveMujicaAPI model `gpt-5.5` at `https://api.avemujica.moe/v1`.
 - Never commit `.env` or provider credentials.
 
@@ -35,6 +35,8 @@
 - Interactive mode requires approval for `write`, `edit`, and `bash`; `/fiwb` or `/yolo` bypasses approvals for the current process only.
 - One-shot prompt mode currently allows tools without interactive approval.
 - JSONL sessions are append-only; `--resume` only loads sessions whose stored header `cwd` matches the current working directory.
+- Built-in skill: `/skill:init` creates or updates compact repository `AGENTS.md` instructions.
+- Additional skills load from `.sabi/skills/` and `~/.sabi/skills/`; skill summaries are included in ordinary prompts.
 
 ## Architecture Constraints
 

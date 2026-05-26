@@ -69,7 +69,7 @@ impl SessionStore {
             path,
         };
         let header = SessionHeader {
-            kind: "rust-pi-agent-session".to_string(),
+            kind: "sabi-agent-session".to_string(),
             version: 1,
             id,
             cwd: cwd.display().to_string(),
@@ -191,7 +191,7 @@ async fn has_message_entries(path: &std::path::Path) -> anyhow::Result<bool> {
 }
 
 fn session_dir(cwd: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
-    let project_dirs = directories::ProjectDirs::from("dev", "rust-agent", "rust-pi-agent")
+    let project_dirs = directories::ProjectDirs::from("dev", "sabi", "sabi-agent")
         .ok_or_else(|| anyhow::anyhow!("failed to resolve session directory"))?;
     let workspace_name = cwd
         .file_name()

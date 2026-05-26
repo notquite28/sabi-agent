@@ -49,7 +49,6 @@ pub async fn run_agent_turn_with_events(
     persist_message(session, &user_message).await?;
     messages.push(user_message);
     let tools = builtin_tool_specs();
-    let mut final_text = String::new();
 
     for _round in 0..MAX_TOOL_ROUNDS {
         let assistant = complete_chat_message(model, messages, &tools).await?;
@@ -58,14 +57,13 @@ pub async fn run_agent_turn_with_events(
 
         if !text.trim().is_empty() {
             emit(AgentEvent::AssistantText { text: text.clone() });
-            final_text = text;
         }
 
         persist_message(session, &assistant).await?;
         messages.push(assistant);
 
         if tool_calls.is_empty() {
-            return Ok(final_text);
+            return Ok(text);
         }
 
         for tool_call in tool_calls {

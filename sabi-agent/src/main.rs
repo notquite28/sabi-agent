@@ -1,4 +1,4 @@
-//! CLI entry point for the Rust Pi agent.
+//! CLI entry point for Sabi Agent.
 //!
 //! Ported from:
 //! - `pi/packages/coding-agent/src/cli.ts`
@@ -12,8 +12,8 @@ use anyhow::Result;
 use clap::Parser;
 
 #[derive(Debug, Parser)]
-#[command(name = "rust-pi-agent")]
-#[command(about = "A small Rust learning port of Pi's core agent harness")]
+#[command(name = "sabi-agent")]
+#[command(about = "A small Rust coding agent harness")]
 struct Cli {
     /// Check provider connectivity, selected model availability, and chat support.
     #[arg(long)]
@@ -32,5 +32,5 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let cli = Cli::parse();
-    rust_pi_agent::app::run(cli.prompt, cli.check_provider, cli.resume).await
+    sabi_agent::app::run(cli.prompt, cli.check_provider, cli.resume).await
 }

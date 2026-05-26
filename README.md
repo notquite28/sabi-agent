@@ -1,12 +1,12 @@
-# Rust Agent
+# Sabi Agent
 
-A beginner-friendly Rust port of Pi's core coding-agent harness.
+A beginner-friendly Rust coding-agent harness.
 
 This repository is a learning project. The goal is to understand and rebuild the essential parts of an agent harness in simple Rust while keeping the original TypeScript Pi agent available as a reference.
 
 ## Layout
 
-- `rust-pi-agent/` - active Rust implementation.
+- `sabi-agent/` - active Rust implementation.
 - `pi/` - original TypeScript Pi agent reference, tracked as a submodule.
 - `ROADMAP.md` - implementation milestones and scope decisions.
 - `docs/ARCHITECTURE.md` - architecture notes, including the future desktop app direction.
@@ -23,11 +23,11 @@ The Rust agent currently supports:
 - Structured agent events used by the CLI renderer.
 - JSONL session files with `--resume` for the latest non-empty session in the current working directory.
 - Interactive approvals for `write`, `edit`, and `bash`, with session-only `/fiwb` mode to bypass approvals.
+- Skill discovery from `.sabi/skills` and `~/.sabi/skills`, with `/skill:name` invocation.
 - Generated Fibonacci examples used to verify file tools.
 
 Planned next:
 
-- Slash-command skills.
 - Session selection and richer resume UX.
 - Richer approval UX for risky operations.
 - A fuller desktop-facing API for a future Tauri/Cursor-style frontend.
@@ -35,7 +35,7 @@ Planned next:
 ## Setup
 
 ```bash
-cd rust-pi-agent
+cd sabi-agent
 cp .env.example .env
 ```
 
@@ -53,7 +53,7 @@ Do not commit `.env`; it is ignored.
 
 ## Commands
 
-Run from `rust-pi-agent/`:
+Run from `sabi-agent/`:
 
 ```bash
 cargo fmt

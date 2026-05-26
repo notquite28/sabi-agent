@@ -1,6 +1,6 @@
-# Rust Pi Agent
+# Sabi Agent
 
-This crate is a small Rust learning port of Pi's core agent harness.
+This crate is a small Rust coding-agent harness.
 
 The original TypeScript implementation remains in `../pi/` for reference. This crate does not modify or depend on that code at runtime.
 
@@ -28,6 +28,7 @@ It also supports:
 - `--resume` for the latest non-empty session whose stored `cwd` matches the current working directory.
 - Interactive approval prompts for `write`, `edit`, and `bash`.
 - `/fiwb` mode to allow risky tools for the current process only. It resets after restart.
+- Skill discovery and `/skill:name optional instructions` invocation.
 
 ## Configuration
 
@@ -58,7 +59,7 @@ export RUST_PI_MODEL=gpt-4.1-mini
 export RUST_PI_BASE_URL=https://api.openai.com/v1
 ```
 
-`.env` is loaded from the process current working directory. Running with `--manifest-path` from another directory will not automatically load `rust-pi-agent/.env`; export the variables explicitly if needed.
+`.env` is loaded from the process current working directory. Running with `--manifest-path` from another directory will not automatically load `sabi-agent/.env`; export the variables explicitly if needed.
 
 ## Run
 
@@ -90,3 +91,13 @@ Use `/clear` to clear only the in-memory conversation. Use `/new` to clear the c
 In interactive mode, `write`, `edit`, and `bash` require approval before execution. Read-only tools such as `read`, `ls`, `grep`, and `find` run without approval.
 
 Use `/fiwb` to toggle session-only "Fuck it we ball" mode. `/yolo` is accepted as an alias. While enabled, risky tools run without approval. The mode is in memory only and resets when the process exits.
+
+## Skills
+
+The agent includes a built-in `init` skill for creating or updating repository `AGENTS.md` files.
+
+Additional skills are loaded from `.sabi/skills/` and `~/.sabi/skills/`. Each skill is a `SKILL.md` file with `name` and `description` frontmatter.
+
+Use `/skill:name optional extra instructions` to invoke a loaded skill. `/reload` reloads skill definitions after loading the previous session.
+
+Loaded skill names and descriptions are included in ordinary prompts so the model can suggest `/skill:name` when a skill looks relevant.

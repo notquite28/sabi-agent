@@ -18,6 +18,7 @@ use crate::events::AgentEvent;
 use crate::llm::{check_provider, ModelConfig};
 use crate::messages::Message;
 use crate::session::SessionStore;
+use crate::skills::{self, Skill};
 use crate::slash::{self, SlashCommand};
 
 pub async fn run(
@@ -38,6 +39,8 @@ pub async fn run(
         return Ok(());
     }
 
+    let mut skills = skills::discover(&cwd)?;
+
     let (mut messages, mut session, resumed) = if should_resume {
         match SessionStore::latest(&cwd).await? {
             Some(session) => {
@@ -52,6 +55,7 @@ pub async fn run(
 
     if !prompt_words.is_empty() {
         let prompt = prompt_words.join(" ");
+        let prompt = prompt_with_skills(&prompt, &skills);
         run_agent_turn_with_events(
             &model,
             &mut messages,
@@ -66,7 +70,7 @@ pub async fn run(
     }
 
     println!(
-        "rust-pi-agent ready with read/write/edit/bash/ls/grep/find tools. Type /help for commands or /quit to exit."
+        "sabi-agent ready with read/write/edit/bash/ls/grep/find tools. Type /help for commands or /quit to exit."
     );
     println!("session: {}", session.path.display());
     if resumed {
@@ -84,7 +88,17 @@ pub async fn run(
 
         let _ = editor.add_history_entry(trimmed);
         if let Some(command) = slash::parse(trimmed) {
-            if handle_command(command, &mut messages, &mut session, &cwd, &mut fiwb_mode).await? {
+            if handle_command(
+                command,
+                &mut messages,
+                &mut session,
+                &cwd,
+                &mut fiwb_mode,
+                &mut skills,
+                &model,
+            )
+            .await?
+            {
                 break;
             }
             continue;
@@ -94,7 +108,7 @@ pub async fn run(
             &model,
             &mut messages,
             &cwd,
-            trimmed,
+            &prompt_with_skills(trimmed, &skills),
             Some(&session),
             render_event,
             |name, args| approve_tool(name, args, fiwb_mode),
@@ -103,6 +117,14 @@ pub async fn run(
     }
 
     Ok(())
+}
+
+fn prompt_with_skills(prompt: &str, skills: &[Skill]) -> String {
+    let available = skills::format_available(skills);
+    if available.is_empty() {
+        return prompt.to_string();
+    }
+    format!("{available}\nUser request:\n{prompt}")
 }
 
 fn render_event(event: AgentEvent) {
@@ -146,10 +168,12 @@ async fn handle_command(
     session: &mut SessionStore,
     cwd: &std::path::Path,
     fiwb_mode: &mut bool,
+    skills: &mut Vec<Skill>,
+    model: &ModelConfig,
 ) -> Result<bool> {
     match command {
         SlashCommand::Help => {
-            println!("commands: /help, /clear, /new, /session, /reload, /fiwb, /yolo, /quit");
+            println!("commands: /help, /clear, /new, /session, /reload, /skill:name, /fiwb, /yolo, /quit");
             Ok(false)
         }
         SlashCommand::Quit => Ok(true),
@@ -168,6 +192,7 @@ async fn handle_command(
             println!("messages in memory: {}", messages.len());
             println!("session id: {}", session.id);
             println!("session file: {}", session.path.display());
+            println!("skills loaded: {}", skills.len());
             println!("fiwb mode: {}", if *fiwb_mode { "on" } else { "off" });
             Ok(false)
         }
@@ -191,11 +216,41 @@ async fn handle_command(
             let path = latest.path.display().to_string();
             *messages = loaded;
             *session = latest;
+            *skills = skills::discover(cwd)?;
             println!("loaded {count} messages from {path}");
+            println!("reloaded {} skills", skills.len());
             Ok(false)
         }
-        SlashCommand::Skill { name, .. } => {
-            println!("skill invocation is not implemented yet: {name}");
+        SlashCommand::Skill { name, extra } => {
+            let Some(skill) = skills.iter().find(|skill| skill.name == name) else {
+                println!("unknown skill: {name}");
+                if !skills.is_empty() {
+                    println!(
+                        "available skills: {}",
+                        skills
+                            .iter()
+                            .map(|skill| skill.name.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                }
+                return Ok(false);
+            };
+            if skill.disable_model_invocation {
+                println!("skill cannot be invoked by the model: {name}");
+                return Ok(false);
+            }
+            let prompt = skills::format_invocation(skill, &extra);
+            run_agent_turn_with_events(
+                model,
+                messages,
+                cwd,
+                &prompt,
+                Some(session),
+                render_event,
+                |tool_name, args| approve_tool(tool_name, args, *fiwb_mode),
+            )
+            .await?;
             Ok(false)
         }
         SlashCommand::Unknown(name) => {

@@ -1,4 +1,4 @@
-//! Reusable library entry point for the Rust Pi agent engine.
+//! Reusable library entry point for the Sabi Agent engine.
 //!
 //! Ported from:
 //! - `pi/packages/agent/src/agent.ts`

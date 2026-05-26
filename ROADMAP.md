@@ -1,6 +1,6 @@
-# Rust Pi Agent Roadmap
+# Sabi Agent Roadmap
 
-This project is a beginner-friendly Rust port of the core Pi agent harness ideas.
+This project is a beginner-friendly Rust port of the core Pi agent harness ideas, now branded as Sabi Agent.
 The original TypeScript Pi agent stays in `pi/` as the reference implementation.
 
 The goal is not to clone Pi feature-for-feature. The goal is to learn how an agent harness works while keeping the Rust code small, direct, and easy to reason about.
@@ -52,7 +52,7 @@ Sessions:
 Status: complete.
 
 Deliverables:
-- Rust crate under `rust-pi-agent/`.
+- Rust crate under `sabi-agent/`.
 - CLI entry point.
 - Module layout matching the learning roadmap.
 - Documentation comments in every Rust source file.
@@ -133,7 +133,7 @@ Deliverables:
 
 ## Milestone 6: Slash Commands And Skills
 
-Status: partially started. Basic slash command parsing exists, but skill loading and invocation are not implemented yet.
+Status: complete for the first pass. Slash commands exist, skills are discovered from `.sabi/skills/` and `~/.sabi/skills/`, `/skill:name optional extra instructions` invokes a loaded skill, and available skill summaries are included in ordinary prompts.
 
 Deliverables:
 - Add `/help`, `/quit`, `/clear`, `/new`, `/session`, `/reload`.
@@ -142,10 +142,8 @@ Deliverables:
 - Invoke skills with `/skill:name optional extra instructions`.
 
 Skill search locations:
-- `.agents/skills/`
-- `.pi/skills/`
-- `~/.agents/skills/`
-- `~/.pi/agent/skills/`
+- `.sabi/skills/`
+- `~/.sabi/skills/`
 
 ## Milestone 7: JSONL Sessions
 
