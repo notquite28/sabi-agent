@@ -8,19 +8,6 @@
 //! - Starts with a single interactive mode.
 //! - Does not include Pi's package commands, RPC mode, JSON mode, or update flows.
 
-#![allow(dead_code)]
-
-mod agent;
-mod app;
-mod config;
-mod diff;
-mod llm;
-mod messages;
-mod session;
-mod skills;
-mod slash;
-mod tools;
-
 use anyhow::Result;
 use clap::Parser;
 
@@ -32,6 +19,10 @@ struct Cli {
     #[arg(long)]
     check_provider: bool,
 
+    /// Resume the latest non-empty session for the current working directory.
+    #[arg(long)]
+    resume: bool,
+
     /// Optional one-shot prompt. If omitted, interactive mode starts.
     prompt: Vec<String>,
 }
@@ -41,5 +32,5 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let cli = Cli::parse();
-    app::run(cli.prompt, cli.check_provider).await
+    rust_pi_agent::app::run(cli.prompt, cli.check_provider, cli.resume).await
 }

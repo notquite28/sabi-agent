@@ -18,17 +18,19 @@ This repository is a learning project. The goal is to understand and rebuild the
 The Rust agent currently supports:
 
 - OpenAI-compatible chat completions.
-- AveMujicaAPI defaults via `.env`.
-- Tool calls for `read`, `write`, and `bash`.
-- A generated Fibonacci example used to verify the write tool.
+- AveMujicaAPI defaults via environment variables or a working-directory `.env`.
+- Tool calls for `read`, `write`, `edit`, `bash`, `ls`, `grep`, and `find`.
+- Structured agent events used by the CLI renderer.
+- JSONL session files with `--resume` for the latest non-empty session in the current working directory.
+- Interactive approvals for `write`, `edit`, and `bash`, with session-only `/fiwb` mode to bypass approvals.
+- Generated Fibonacci examples used to verify file tools.
 
 Planned next:
 
-- `edit` with rich diffs.
-- `ls`, `grep`, and `find`.
 - Slash-command skills.
-- JSONL sessions.
-- A library boundary and structured events for a future Tauri/Cursor-style desktop frontend.
+- Session selection and richer resume UX.
+- Richer approval UX for risky operations.
+- A fuller desktop-facing API for a future Tauri/Cursor-style frontend.
 
 ## Setup
 
@@ -47,6 +49,8 @@ RUST_PI_BASE_URL=https://api.avemujica.moe/v1
 
 Do not commit `.env`; it is ignored.
 
+`.env` is loaded from the process current working directory. If you run the binary from another directory, export the required variables explicitly or provide a `.env` in that directory.
+
 ## Commands
 
 Run from `rust-pi-agent/`:
@@ -56,6 +60,7 @@ cargo fmt
 cargo check
 cargo run -- --help
 cargo run -- --check-provider
+cargo run -- --resume
 cargo run -- "Say exactly: ok"
 cargo run --example fibonacci
 ```

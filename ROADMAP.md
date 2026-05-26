@@ -49,7 +49,7 @@ Sessions:
 
 ## Milestone 1: Project Skeleton
 
-Status: in progress.
+Status: complete.
 
 Deliverables:
 - Rust crate under `rust-pi-agent/`.
@@ -59,6 +59,8 @@ Deliverables:
 - Basic `cargo check` passes.
 
 ## Milestone 2: Plain Chat Loop
+
+Status: complete.
 
 Deliverables:
 - Read user input interactively.
@@ -74,6 +76,8 @@ Out of scope:
 
 ## Milestone 3: Agent Loop With Tools
 
+Status: complete for the initial `read`, `write`, and `bash` tool set.
+
 Deliverables:
 - Represent messages, assistant tool calls, and tool results.
 - Register tools in a simple map.
@@ -88,6 +92,8 @@ Initial tools:
 
 ## Milestone 4: File Editing And Rich Diffs
 
+Status: partially complete. `edit` is implemented and registered with exact replacement, uniqueness checks, and basic diff/file events. Rich terminal diff polish and intra-line highlighting are still pending.
+
 Deliverables:
 - Add `edit` with exact text replacement.
 - Reject missing, duplicate, empty, or no-op replacements.
@@ -100,6 +106,8 @@ Out of scope:
 - TUI boxes/collapsible output.
 
 ## Milestone 4.5: Library Boundary For Future Desktop UI
+
+Status: partially complete. `src/lib.rs` exists, the CLI uses the library crate, and the agent loop emits structured events for assistant text, tool lifecycle, diffs, and file changes. A fuller desktop-facing API can come later.
 
 Deliverables:
 - Add `src/lib.rs` and move reusable agent code behind a library API.
@@ -115,6 +123,8 @@ Why this matters:
 
 ## Milestone 5: Search And Listing Tools
 
+Status: complete for first-pass implementations. `ls` uses Rust filesystem APIs, `grep` shells out to `rg`, and `find` shells out to `fd`. Output truncation exists for `grep` and `find`.
+
 Deliverables:
 - Add `ls` using Rust filesystem APIs.
 - Add `grep` by shelling out to `rg`.
@@ -123,8 +133,10 @@ Deliverables:
 
 ## Milestone 6: Slash Commands And Skills
 
+Status: partially started. Basic slash command parsing exists, but skill loading and invocation are not implemented yet.
+
 Deliverables:
-- Add `/help`, `/quit`, `/clear`, `/session`, `/reload`.
+- Add `/help`, `/quit`, `/clear`, `/new`, `/session`, `/reload`.
 - Load skills from project and user skill directories.
 - Include available skills in the system prompt.
 - Invoke skills with `/skill:name optional extra instructions`.
@@ -136,6 +148,8 @@ Skill search locations:
 - `~/.pi/agent/skills/`
 
 ## Milestone 7: JSONL Sessions
+
+Status: partially complete. New runs create an append-only JSONL session file with a header and message entries. `--resume` loads the latest non-empty session for the current working directory and continues appending to it. `/reload` can manually load the latest previous session into memory. Session selection is not implemented yet.
 
 Deliverables:
 - Save session headers and message entries to JSONL.
@@ -149,6 +163,8 @@ Out of scope:
 - Compaction.
 
 ## Milestone 8: Polish
+
+Status: partially started. Interactive approval prompts exist for `write`, `edit`, and `bash`; `/fiwb` allows risky tools for the current process only.
 
 Deliverables:
 - Better error messages.

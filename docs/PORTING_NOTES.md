@@ -37,11 +37,15 @@ The Rust version should also keep the core agent code reusable for non-terminal 
 
 `write` creates parent directories and overwrites files. Pi also has richer TUI preview behavior.
 
-`edit` starts with exact replacement and uniqueness checks. Pi includes fuzzy matching and more complete diff utilities.
+`edit` uses exact replacement and uniqueness checks. Pi includes fuzzy matching and more complete diff utilities.
 
 `bash` captures output and supports timeout. Pi also handles process groups, partial output updates, and shell environment details.
 
-`grep` and `find` should initially use external `rg` and `fd`. Pi can download missing tools; the Rust version should first report a clear error if they are not installed.
+`ls` uses Rust filesystem APIs.
+
+`grep` and `find` use external `rg` and `fd`. Pi can download missing tools; the Rust version currently reports a clear error if they are not installed.
+
+`write` and `edit` emit diff/file events so frontends can render file changes without scraping text output.
 
 ## Skill Simplification Notes
 

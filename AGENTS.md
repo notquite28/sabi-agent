@@ -2,41 +2,43 @@
 
 ## Scope
 
-- `pi/` is the original TypeScript Pi agent reference. Do not modify it unless the user explicitly asks; it has its own `pi/AGENTS.md` rules.
-- Active implementation is `rust-pi-agent/`, a beginner-friendly Rust port of Pi's core agent harness.
-- Keep the Rust agent reusable as an engine for both the CLI and a future Tauri/Cursor-style desktop app; avoid baking terminal output into core logic when adding new subsystems.
+- Active implementation is `rust-pi-agent/`; run Rust commands from that directory unless intentionally testing another CWD.
+- `pi/` is the original TypeScript Pi reference submodule. Do not modify it unless the user explicitly asks; it has its own `pi/AGENTS.md`.
+- Keep core Rust agent logic reusable behind `src/lib.rs`; `src/main.rs` should stay a thin CLI frontend.
 
 ## Read First
 
-- Start with `ROADMAP.md`, `docs/ARCHITECTURE.md`, and `docs/PORTING_NOTES.md` before changing architecture or scope.
-- For crate usage and provider setup, read `rust-pi-agent/README.md` and `rust-pi-agent/Cargo.toml`.
+- For current state and scope, read `README.md`, `rust-pi-agent/README.md`, and `ROADMAP.md`.
+- For architecture changes, also read `docs/ARCHITECTURE.md` and `docs/PORTING_NOTES.md`.
 - Every Rust source file should keep its top module doc comment with `Ported from:` and `Simplifications:` notes.
 
-## Rust Commands
+## Commands
 
-- Work from `rust-pi-agent/` for Rust commands.
-- Format: `cargo fmt`.
-- Compile check: `cargo check`.
-- Run CLI help: `cargo run -- --help`.
-- Provider smoke test: `cargo run -- --check-provider`.
+- Format: `cargo fmt` from `rust-pi-agent/`.
+- Compile check: `cargo check` from `rust-pi-agent/`.
+- CLI help: `cargo run -- --help`.
+- Interactive CLI: `cargo run`.
+- Resume latest non-empty session for the current CWD: `cargo run -- --resume`.
 - Harmless one-shot smoke test: `cargo run -- "Say exactly: ok"`.
-- Example verification: `cargo run --example fibonacci` currently prints `55`.
+- Provider smoke test: `cargo run -- --check-provider`; this makes real API calls and requires `OPENAI_API_KEY`.
 
-## Provider And Secrets
+## Provider And Config
 
-- Local provider config is loaded from `rust-pi-agent/.env` via `dotenvy`; `.env` is ignored and must not be committed.
-- Current defaults target AveMujicaAPI: `RUST_PI_BASE_URL=https://api.avemujica.moe/v1`, `RUST_PI_MODEL=gpt-5.5`.
-- `--check-provider` makes a real API call and requires `OPENAI_API_KEY`; do not run it unless provider behavior is being verified.
+- `.env` is loaded from the process current working directory via `dotenvy`; running with `--manifest-path` from another directory will not load `rust-pi-agent/.env`.
+- Expected local env keys are `OPENAI_API_KEY`, `RUST_PI_MODEL`, and `RUST_PI_BASE_URL`; defaults target AveMujicaAPI model `gpt-5.5` at `https://api.avemujica.moe/v1`.
+- Never commit `.env` or provider credentials.
 
-## Current Agent Capabilities
+## Current Capabilities
 
-- The Rust agent currently supports OpenAI-compatible chat completions with tool calls.
-- Implemented tools: `read`, `write`, `bash`.
-- Planned next tools/features are `edit` with rich diffs, then `ls`, `grep`, `find`, slash-command skills, and JSONL sessions.
+- Built-in tools are `read`, `write`, `edit`, `bash`, `ls`, `grep`, and `find`.
+- `grep` shells out to `rg`; `find` shells out to `fd`, so missing binaries are runtime tool errors.
+- Interactive mode requires approval for `write`, `edit`, and `bash`; `/fiwb` or `/yolo` bypasses approvals for the current process only.
+- One-shot prompt mode currently allows tools without interactive approval.
+- JSONL sessions are append-only; `--resume` only loads sessions whose stored header `cwd` matches the current working directory.
 
-## Style And Architecture
+## Architecture Constraints
 
-- Prefer simple Rust: direct structs/enums/functions, clear `match`, `anyhow::Result` in app code.
-- Keep `pi/` behavior as reference, but port behavior selectively; do not clone Pi's extension/package/OAuth/TUI complexity early.
-- Before desktop work, add a `lib.rs` boundary and structured agent events so the CLI is only one frontend.
-- For risky future desktop tools, plan approval flows: allow read-only tools by default; require approval for `write`, `edit`, and `bash`.
+- Agent work should emit structured events from core logic; keep terminal rendering in the CLI layer.
+- File mutation tools should emit diff/file events so future desktop UI can render changes safely.
+- Prefer simple Rust: direct structs/enums/functions, clear `match`, and `anyhow::Result` in app code.
+- Port Pi behavior selectively; do not clone Pi's extension/package/OAuth/TUI/RPC complexity unless explicitly requested.

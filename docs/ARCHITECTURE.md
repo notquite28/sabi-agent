@@ -18,7 +18,7 @@ rust-agent/
 
 ```text
 rust-pi-agent/src/
-  lib.rs              # Future reusable library entry point.
+  lib.rs              # Reusable library entry point.
   main.rs             # CLI entry point.
   app.rs              # Top-level application flow.
   agent.rs            # Agent loop and tool-call orchestration.
@@ -40,7 +40,7 @@ rust-pi-agent/src/
     find.rs           # fd-backed file finder.
 ```
 
-The current crate may start as a binary-only project while learning. Before building the desktop app, move reusable modules behind `lib.rs` and keep `main.rs` as a thin CLI frontend.
+Reusable modules now live behind `lib.rs`, and `main.rs` is a thin CLI frontend. The library API is still early and can be refined before desktop work begins.
 
 ## Core Flow
 
@@ -52,7 +52,8 @@ The current crate may start as a binary-only project while learning. Before buil
 6. If the assistant requested tools, `agent.rs` executes them and appends tool result messages.
 7. The loop continues until the assistant returns no tool calls.
 8. The agent emits structured events while it works.
-9. `session.rs` appends each message to JSONL.
+9. `session.rs` appends each message to JSONL as it is created.
+10. `--resume` can load the latest non-empty JSONL session whose stored `cwd` matches the current working directory.
 
 This mirrors the high-level behavior in `pi/packages/agent/src/agent-loop.ts` while intentionally omitting Pi's extension hooks, compaction, branching, and multi-provider registry.
 

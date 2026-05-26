@@ -5,7 +5,7 @@
 //! - `pi/packages/coding-agent/src/modes/interactive/interactive-mode.ts`
 //!
 //! Simplifications:
-//! - Starts with `/help`, `/quit`, `/clear`, `/session`, `/reload`, and `/skill:name`.
+//! - Starts with `/help`, `/quit`, `/clear`, `/new`, `/session`, `/reload`, `/fiwb`, and `/skill:name`.
 //! - No extension commands, prompt templates, settings UI, or model selector yet.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,8 +13,10 @@ pub enum SlashCommand {
     Help,
     Quit,
     Clear,
+    New,
     Session,
     Reload,
+    Fiwb,
     Skill { name: String, extra: String },
     Unknown(String),
 }
@@ -29,8 +31,10 @@ pub fn parse(input: &str) -> Option<SlashCommand> {
         "/help" => Some(SlashCommand::Help),
         "/quit" | "/exit" => Some(SlashCommand::Quit),
         "/clear" => Some(SlashCommand::Clear),
+        "/new" => Some(SlashCommand::New),
         "/session" => Some(SlashCommand::Session),
         "/reload" => Some(SlashCommand::Reload),
+        "/fiwb" | "/yolo" => Some(SlashCommand::Fiwb),
         _ if input.starts_with("/skill:") => {
             let rest = input.trim_start_matches("/skill:");
             let mut parts = rest.splitn(2, ' ');

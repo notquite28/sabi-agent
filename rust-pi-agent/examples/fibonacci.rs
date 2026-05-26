@@ -3,18 +3,13 @@ fn fibonacci(n: u32) -> u64 {
         return 0;
     }
 
-    let mut previous: u64 = 0;
-    let mut current: u64 = 1;
-
-    for _ in 1..n {
-        let next = previous + current;
-        previous = current;
-        current = next;
+    if n == 1 {
+        return 1;
     }
 
-    current
+    fibonacci(n - 1) + fibonacci(n - 2)
 }
 
 fn main() {
-    println!("{}", fibonacci(10));
+    println!("{}", fibonacci(5));
 }

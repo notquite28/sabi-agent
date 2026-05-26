@@ -21,10 +21,13 @@ use std::path::Path;
 use anyhow::Result;
 use serde_json::{json, Value};
 
+use crate::events::AgentEvent;
+
 #[derive(Debug, Clone)]
 pub struct ToolOutput {
     pub content: String,
     pub is_error: bool,
+    pub events: Vec<AgentEvent>,
 }
 
 #[derive(Debug, Clone)]
@@ -35,26 +38,44 @@ pub struct ToolSpec {
 }
 
 pub fn builtin_tool_specs() -> Vec<ToolSpec> {
-    vec![read::spec(), write::spec(), bash::spec()]
+    vec![
+        read::spec(),
+        write::spec(),
+        edit::spec(),
+        bash::spec(),
+        ls::spec(),
+        grep::spec(),
+        find::spec(),
+    ]
 }
 
 pub async fn run_tool(name: &str, args: Value, cwd: &Path) -> ToolOutput {
-    let result: Result<String> = match name {
-        "read" => read::run(args, cwd).await,
+    let result: Result<ToolOutput> = match name {
+        "read" => read::run(args, cwd).await.map(success),
         "write" => write::run(args, cwd).await,
-        "bash" => bash::run(args, cwd).await,
+        "edit" => edit::run(args, cwd).await,
+        "bash" => bash::run(args, cwd).await.map(success),
+        "ls" => ls::run(args, cwd).await.map(success),
+        "grep" => grep::run(args, cwd).await.map(success),
+        "find" => find::run(args, cwd).await.map(success),
         _ => Err(anyhow::anyhow!("unknown tool: {name}")),
     };
 
     match result {
-        Ok(content) => ToolOutput {
-            content,
-            is_error: false,
-        },
+        Ok(output) => output,
         Err(error) => ToolOutput {
             content: error.to_string(),
             is_error: true,
+            events: Vec::new(),
         },
+    }
+}
+
+fn success(content: String) -> ToolOutput {
+    ToolOutput {
+        content,
+        is_error: false,
+        events: Vec::new(),
     }
 }
 

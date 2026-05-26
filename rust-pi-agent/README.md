@@ -11,11 +11,23 @@ See:
 
 ## Current State
 
-The crate currently supports an OpenAI-compatible agent loop with basic tools:
+The crate currently supports an OpenAI-compatible agent loop with these tools:
 
 - `read`
 - `write`
+- `edit`
 - `bash`
+- `ls`
+- `grep`
+- `find`
+
+It also supports:
+
+- Structured agent events rendered by the CLI.
+- JSONL session files.
+- `--resume` for the latest non-empty session whose stored `cwd` matches the current working directory.
+- Interactive approval prompts for `write`, `edit`, and `bash`.
+- `/fiwb` mode to allow risky tools for the current process only. It resets after restart.
 
 ## Configuration
 
@@ -25,7 +37,7 @@ Required. For AveMujicaAPI, paste your AveMujicaAPI token here; their docs use t
 export OPENAI_API_KEY=...
 ```
 
-For local development, you can also edit `.env`:
+For local development, you can also edit `.env` in the directory where you run the command:
 
 ```dotenv
 OPENAI_API_KEY=...
@@ -46,11 +58,14 @@ export RUST_PI_MODEL=gpt-4.1-mini
 export RUST_PI_BASE_URL=https://api.openai.com/v1
 ```
 
+`.env` is loaded from the process current working directory. Running with `--manifest-path` from another directory will not automatically load `rust-pi-agent/.env`; export the variables explicitly if needed.
+
 ## Run
 
 ```bash
 cargo run -- --help
 cargo run -- --check-provider
+cargo run -- --resume
 cargo run -- "Say exactly: ok"
 cargo run -- "Read README.md and summarize it"
 cargo run
@@ -61,3 +76,17 @@ cargo run
 - `RUST_PI_BASE_URL/v1/models` is reachable through the configured base URL.
 - `RUST_PI_MODEL` exists in the returned model list.
 - `RUST_PI_BASE_URL/v1/chat/completions` accepts a minimal request for the selected model.
+
+## Sessions
+
+Interactive runs create append-only JSONL session files under the user data directory, grouped by working-directory name. Each file stores a header with the original `cwd` and message entries as the conversation progresses.
+
+Use `cargo run -- --resume` to resume the latest non-empty session for the current working directory. Sessions from other working directories are ignored.
+
+Use `/clear` to clear only the in-memory conversation. Use `/new` to clear the conversation and start a fresh session file.
+
+## Tool Approval
+
+In interactive mode, `write`, `edit`, and `bash` require approval before execution. Read-only tools such as `read`, `ls`, `grep`, and `find` run without approval.
+
+Use `/fiwb` to toggle session-only "Fuck it we ball" mode. `/yolo` is accepted as an alias. While enabled, risky tools run without approval. The mode is in memory only and resets when the process exits.
