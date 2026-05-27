@@ -166,6 +166,7 @@ Start with crates that are common, stable, and easy to understand:
 - `serde` and `serde_json` for data types.
 - `similar` for text diffs.
 - `time` for timestamps.
+- `toml` for per-project config file parsing.
 - `tokio` for async runtime and process execution.
 - `tracing` and `tracing-subscriber` for diagnostics.
 - `uuid` for session IDs.
@@ -189,5 +190,6 @@ Minimum config:
 - `OPENAI_API_KEY`
 - `RUST_PI_MODEL`, defaulting to a configurable model string.
 - `RUST_PI_BASE_URL`, defaulting to the OpenAI API base URL.
+- Optional `sabi.toml` in the working directory for per-project overrides.
 
 Anthropic and provider abstraction can come after the basic tool loop works.

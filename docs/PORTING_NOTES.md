@@ -49,6 +49,16 @@ The Rust version should also keep the core agent code reusable for non-terminal 
 
 `write` and `edit` emit diff/file events so frontends can render file changes without scraping text output.
 
+## Config Simplification Notes
+
+The Rust version supports three config sources, in order of precedence:
+
+1. `sabi.toml` in the working directory (per-project overrides for `model` and `base_url`).
+2. Environment variables (`RUST_PI_MODEL`, `RUST_PI_BASE_URL`).
+3. Hardcoded defaults (AveMujicaAPI).
+
+`OPENAI_API_KEY` and `EXA_API_KEY` must still come from `.env` or the environment. Invalid `sabi.toml` files print a warning instead of crashing.
+
 ## Skill Simplification Notes
 
 Skills should follow the Agent Skills convention with `SKILL.md` and frontmatter. Built-in skills store their prompt content in `src/skills/*.txt` files loaded via `include_str!` for easy editing without recompiling. The first Rust version only needs:
@@ -81,3 +91,7 @@ Likely desktop stack:
 - Rust `notify` for file watching.
 
 Avoid doing this too early. The desktop app should come after the tool loop, edit/diff flow, skills, and sessions are stable enough to expose through a library API.
+
+## Testing Notes
+
+The Rust version starts with unit tests for diff logic (unified patch generation and terminal diff rendering). Tool and integration tests can be added as the harness matures.

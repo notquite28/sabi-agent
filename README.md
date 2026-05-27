@@ -18,12 +18,14 @@ This repository is a learning project. The goal is to understand and rebuild the
 The Rust agent currently supports:
 
 - OpenAI-compatible chat completions.
-- AveMujicaAPI defaults via environment variables or a working-directory `.env`.
+- AveMujicaAPI defaults via environment variables, a working-directory `.env`, or a `sabi.toml` config file.
 - Tool calls for `read`, `write`, `edit`, `bash`, `ls`, `grep`, `find`, `web_search`, and `exa_search`.
 - Structured agent events used by the CLI renderer.
 - JSONL session files with `--resume` for the latest non-empty session in the current working directory.
 - Interactive approvals for `write`, `edit`, and `bash`, with session-only `/fiwb` mode to bypass approvals.
 - Skill discovery from `.sabi/skills` and `~/.sabi/skills`, with `/skill:name` invocation.
+- Readline command history persisted across restarts.
+- Unit tests for diff logic.
 - Generated Fibonacci examples used to verify file tools.
 
 Planned next:
@@ -47,6 +49,15 @@ RUST_PI_MODEL=gpt-5.5
 RUST_PI_BASE_URL=https://api.avemujica.moe/v1
 EXA_API_KEY=...
 ```
+
+Optional per-project config via `sabi.toml` in the working directory:
+
+```toml
+model = "gpt-4o-mini"
+base_url = "https://api.openai.com/v1"
+```
+
+`sabi.toml` overrides env vars for `model` and `base_url` only. `OPENAI_API_KEY` must still come from `.env` or the environment.
 
 Do not commit `.env`; it is ignored.
 

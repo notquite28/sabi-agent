@@ -26,7 +26,8 @@
 
 - `.env` is loaded from the process current working directory via `dotenvy`; running with `--manifest-path` from another directory will not load `sabi-agent/.env`.
 - Expected local env keys are `OPENAI_API_KEY`, `RUST_PI_MODEL`, and `RUST_PI_BASE_URL`; defaults target AveMujicaAPI model `gpt-5.5` at `https://api.avemujica.moe/v1`.
-- Never commit `.env` or provider credentials.
+- Optional per-project config via `sabi.toml` in the working directory overrides `RUST_PI_MODEL` and `RUST_PI_BASE_URL`.
+- Never commit `.env`, `sabi.toml`, or provider credentials.
 
 ## Current Capabilities
 

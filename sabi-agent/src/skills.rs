@@ -122,12 +122,15 @@ fn skill_roots(cwd: &Path) -> Vec<PathBuf> {
 fn parse_skill(path: &Path) -> Result<Skill> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read skill {}", path.display()))?;
-    let (frontmatter, body) =
-        split_frontmatter(&content).ok_or_else(|| anyhow::anyhow!("missing YAML frontmatter"))?;
-    let name =
-        frontmatter_value(frontmatter, "name").ok_or_else(|| anyhow::anyhow!("missing name"))?;
+    let (frontmatter, body) = split_frontmatter(&content).ok_or_else(|| {
+        anyhow::anyhow!(
+            "missing YAML frontmatter (file must start with '---' and end frontmatter with '---')"
+        )
+    })?;
+    let name = frontmatter_value(frontmatter, "name")
+        .ok_or_else(|| anyhow::anyhow!("missing 'name' in frontmatter"))?;
     let description = frontmatter_value(frontmatter, "description")
-        .ok_or_else(|| anyhow::anyhow!("missing description"))?;
+        .ok_or_else(|| anyhow::anyhow!("missing 'description' in frontmatter"))?;
     let disable_model_invocation = frontmatter_value(frontmatter, "disable-model-invocation")
         .is_some_and(|value| value == "true");
 

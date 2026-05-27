@@ -33,3 +33,39 @@ pub fn render_terminal_diff(old: &str, new: &str) -> String {
 
     rendered
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unified_patch_contains_header_and_changes() {
+        let old = "line one\nline two\n";
+        let new = "line one\nline two modified\n";
+        let patch = unified_patch("file.txt", old, new);
+        assert!(patch.contains("--- a/file.txt"));
+        assert!(patch.contains("+++ b/file.txt"));
+        assert!(patch.contains("-line two\n"));
+        assert!(patch.contains("+line two modified\n"));
+    }
+
+    #[test]
+    fn render_terminal_diff_shows_plus_and_minus() {
+        let old = "keep\nremove\n";
+        let new = "keep\nadd\n";
+        let rendered = render_terminal_diff(old, new);
+        assert!(rendered.contains("-remove\n"));
+        assert!(rendered.contains("+add\n"));
+        assert!(rendered.contains(" keep\n"));
+    }
+
+    #[test]
+    fn render_terminal_diff_empty_when_identical() {
+        let text = "same\nlines\n";
+        let rendered = render_terminal_diff(text, text);
+        assert!(rendered.contains(" same\n"));
+        assert!(rendered.contains(" lines\n"));
+        assert!(!rendered.contains('+'));
+        assert!(!rendered.contains('-'));
+    }
+}

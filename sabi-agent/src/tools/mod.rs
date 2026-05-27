@@ -63,7 +63,9 @@ pub async fn run_tool(name: &str, args: Value, cwd: &Path) -> ToolOutput {
         "find" => find::run(args, cwd).await.map(success),
         "web_search" => search::run_web_search(args).await,
         "exa_search" => search::run_exa_search(args).await,
-        _ => Err(anyhow::anyhow!("unknown tool: {name}")),
+        _ => Err(anyhow::anyhow!(
+            "unknown tool: {name}. Available tools: read, write, edit, bash, ls, grep, find, web_search, exa_search"
+        )),
     };
 
     match result {

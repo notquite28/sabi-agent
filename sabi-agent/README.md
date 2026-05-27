@@ -31,6 +31,8 @@ It also supports:
 - Interactive approval prompts for `write`, `edit`, and `bash`.
 - `/fiwb` mode to allow risky tools for the current process only. It resets after restart.
 - Skill discovery and `/skill:name optional instructions` invocation.
+- Readline command history persisted across restarts.
+- Unit tests for diff logic.
 
 ## Configuration
 
@@ -62,6 +64,15 @@ export RUST_PI_MODEL=gpt-4.1-mini
 export RUST_PI_BASE_URL=https://api.openai.com/v1
 ```
 
+Optional per-project config via `sabi.toml` in the working directory:
+
+```toml
+model = "gpt-4o-mini"
+base_url = "https://api.openai.com/v1"
+```
+
+`sabi.toml` takes precedence over env vars for `model` and `base_url`. Invalid config files print a warning but do not crash.
+
 `.env` is loaded from the process current working directory. Running with `--manifest-path` from another directory will not automatically load `sabi-agent/.env`; export the variables explicitly if needed.
 
 ## Run
@@ -87,7 +98,7 @@ Interactive runs create append-only JSONL session files under the user data dire
 
 Use `cargo run -- --resume` to resume the latest non-empty session for the current working directory. Sessions from other working directories are ignored.
 
-Use `/clear` to clear only the in-memory conversation. Use `/new` to clear the conversation and start a fresh session file.
+Use `/clear` to clear only the in-memory conversation (system prompt is re-injected). Use `/new` to clear the conversation and start a fresh session file (system prompt is re-injected). Use `/reload` to load the previous session and re-inject the system prompt.
 
 ## Tool Approval
 

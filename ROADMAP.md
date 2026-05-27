@@ -164,13 +164,13 @@ Out of scope:
 
 ## Milestone 8: Polish
 
-Status: partially started. Interactive approval prompts exist for `write`, `edit`, and `bash`; `/fiwb` allows risky tools for the current process only.
+Status: complete.
 
 Deliverables:
-- Better error messages.
-- Config file for model/base URL.
-- Test coverage for tools and diff logic.
-- Optional readline history.
+- Better error messages (helpful hints for missing API keys, unknown tools, invalid skill frontmatter).
+- Config file (`sabi.toml`) for model/base URL with per-project overrides.
+- Test coverage for diff logic (3 unit tests for unified patch and terminal diff rendering).
+- Readline history persisted across restarts.
 
 ## Milestone 9: Desktop App Foundation
 

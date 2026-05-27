@@ -93,7 +93,11 @@ pub async fn run(
     }
     let mut fiwb_mode = false;
 
+    let history_path = history_file_path();
     let mut editor = DefaultEditor::new()?;
+    if let Some(ref path) = history_path {
+        let _ = editor.load_history(path);
+    }
     loop {
         let line = editor.readline("> ")?;
         let trimmed = line.trim();
@@ -132,7 +136,19 @@ pub async fn run(
         .await?;
     }
 
+    // Persist interactive command history so it survives restarts.
+    if let Some(ref path) = history_path {
+        let _ = editor.save_history(path);
+    }
+
     Ok(())
+}
+
+/// Returns the path to the readline history file, or None if the data directory
+/// cannot be resolved.
+fn history_file_path() -> Option<std::path::PathBuf> {
+    let project_dirs = directories::ProjectDirs::from("dev", "sabi", "sabi-agent")?;
+    Some(project_dirs.data_local_dir().join("history"))
 }
 
 fn inject_system_prompt(messages: &mut Vec<Message>, system_prompt: &str) {
