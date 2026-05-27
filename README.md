@@ -23,13 +23,13 @@ The Rust agent currently supports:
 - AveMujicaAPI defaults from `~/.sabi/config.toml`, environment overrides, or a working-directory `sabi.toml`.
 - Tool calls for `read`, `write`, `edit`, `bash`, `ls`, `grep`, `find`, `web_search`, and `exa_search`.
 - Structured agent events used by the CLI renderer.
-- JSONL session files with `--resume` for the latest non-empty session in the current working directory.
+- JSONL session files with `--resume` for the latest non-empty session in the current working directory, plus append-only session title metadata for desktop display.
 - Interactive approvals for `write`, `edit`, and `bash`, with session-only `/fiwb` mode to bypass approvals.
 - Skill discovery from `.sabi/skills` and `~/.sabi/skills`, with `/skill:name` invocation.
 - Readline command history persisted across restarts.
 - First-launch onboarding that guides you through preset configuration.
 - Unit tests for diff logic.
-- Early Tauri desktop shell with backend health and session-list commands.
+- Early Tauri desktop shell with backend health, native project selection, file/skill autocomplete, titled session lists, and right-click session deletion.
 - Generated Fibonacci examples used to verify file tools.
 
 Planned next:

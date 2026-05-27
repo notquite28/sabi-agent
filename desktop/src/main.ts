@@ -1,8 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import "./styles.css";
 
 type DesktopSessionInfo = {
   id: string;
+  title: string | null;
   path: string;
   cwd: string;
   message_count: number;
@@ -60,6 +62,7 @@ const state: {
   activeToken: CompletionToken | null;
   activeSuggestions: Suggestion[];
   selectedSuggestion: number;
+  contextSession: DesktopSessionInfo | null;
 } = {
   workspace: "",
   sessions: [],
@@ -67,6 +70,7 @@ const state: {
   activeToken: null,
   activeSuggestions: [],
   selectedSuggestion: 0,
+  contextSession: null,
 };
 
 app.innerHTML = `
@@ -82,13 +86,14 @@ app.innerHTML = `
 
       <section class="sidebar-section" aria-labelledby="workspace-heading">
         <p id="workspace-heading" class="section-label">Workspace</p>
-        <div id="workspace-name" class="workspace-name">Loading…</div>
-        <label class="workspace-input-label" for="workspace-input">Path</label>
-        <input id="workspace-input" class="workspace-input" type="text" spellcheck="false" autocomplete="off" />
-        <div class="workspace-actions">
-          <button id="apply-workspace" class="secondary-button" type="button">Use Path</button>
-          <button id="refresh" class="secondary-button" type="button">Refresh</button>
+        <div class="project-card">
+          <div>
+            <div id="workspace-name" class="workspace-name">Loading…</div>
+            <div id="workspace-path" class="workspace-path"></div>
+          </div>
+          <button id="refresh" class="icon-button" type="button" title="Refresh workspace" aria-label="Refresh workspace">↻</button>
         </div>
+        <button id="open-project" class="secondary-button full-width" type="button">Open Project</button>
       </section>
 
       <section class="sidebar-section sessions-block" aria-labelledby="sessions-heading">
@@ -116,18 +121,23 @@ app.innerHTML = `
         </form>
       </section>
     </main>
+    <div id="session-menu" class="context-menu" hidden>
+      <button id="delete-session" type="button">Delete Session</button>
+    </div>
   </div>
 `;
 
 const healthEl = document.querySelector<HTMLParagraphElement>("#health");
 const sessionsEl = document.querySelector<HTMLUListElement>("#sessions");
 const refreshButton = document.querySelector<HTMLButtonElement>("#refresh");
-const workspaceInput = document.querySelector<HTMLInputElement>("#workspace-input");
 const workspaceName = document.querySelector<HTMLDivElement>("#workspace-name");
-const applyWorkspaceButton = document.querySelector<HTMLButtonElement>("#apply-workspace");
+const workspacePath = document.querySelector<HTMLDivElement>("#workspace-path");
+const openProjectButton = document.querySelector<HTMLButtonElement>("#open-project");
 const composer = document.querySelector<HTMLFormElement>("#composer");
 const promptInput = document.querySelector<HTMLTextAreaElement>("#prompt");
 const suggestionsEl = document.querySelector<HTMLDivElement>("#suggestions");
+const sessionMenu = document.querySelector<HTMLDivElement>("#session-menu");
+const deleteSessionButton = document.querySelector<HTMLButtonElement>("#delete-session");
 
 function basename(path: string): string {
   const normalized = path.replace(/[/\\]+$/, "");
@@ -136,12 +146,13 @@ function basename(path: string): string {
 }
 
 function renderWorkspace(): void {
-  if (workspaceInput) {
-    workspaceInput.value = state.workspace;
-  }
   if (workspaceName) {
     workspaceName.textContent = state.workspace ? basename(state.workspace) : "No workspace";
     workspaceName.title = state.workspace;
+  }
+  if (workspacePath) {
+    workspacePath.textContent = state.workspace;
+    workspacePath.title = state.workspace;
   }
 }
 
@@ -164,13 +175,46 @@ function renderSessions(): void {
       item.className = "session";
       item.innerHTML = `
         <button type="button" title="${escapeHtml(session.path)}">
-          <span>${escapeHtml(session.id.slice(0, 8))}</span>
-          <small>${session.message_count} messages</small>
+          <span class="session-title">${escapeHtml(sessionTitle(session))}</span>
+          <small>${session.message_count} messages · ${escapeHtml(session.id.slice(0, 8))}</small>
         </button>
       `;
+      item.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        showSessionMenu(event.clientX, event.clientY, session);
+      });
       return item;
     }),
   );
+}
+
+function showSessionMenu(x: number, y: number, session: DesktopSessionInfo): void {
+  if (!sessionMenu) return;
+  state.contextSession = session;
+  sessionMenu.hidden = false;
+  sessionMenu.style.left = `${x}px`;
+  sessionMenu.style.top = `${y}px`;
+}
+
+function hideSessionMenu(): void {
+  if (!sessionMenu) return;
+  sessionMenu.hidden = true;
+  state.contextSession = null;
+}
+
+async function deleteContextSession(): Promise<void> {
+  const session = state.contextSession;
+  if (!session) return;
+  hideSessionMenu();
+  const confirmed = window.confirm(`Delete session "${sessionTitle(session)}"?`);
+  if (!confirmed) return;
+  await invoke<boolean>("delete_session", { cwd: state.workspace || null, id: session.id });
+  state.sessions = state.sessions.filter((item) => item.id !== session.id);
+  renderSessions();
+}
+
+function sessionTitle(session: DesktopSessionInfo): string {
+  return session.title?.trim() || `Session ${session.id.slice(0, 8)}`;
 }
 
 function renderSuggestions(): void {
@@ -201,6 +245,8 @@ function renderSuggestions(): void {
       return button;
     }),
   );
+  const selected = suggestionsEl.querySelector<HTMLElement>('[data-selected="true"]');
+  selected?.scrollIntoView({ block: "nearest" });
 }
 
 async function loadHealth(): Promise<void> {
@@ -332,15 +378,25 @@ function acceptSuggestion(index = state.selectedSuggestion): void {
   renderSuggestions();
 }
 
-function applyWorkspace(): void {
-  const nextWorkspace = workspaceInput?.value.trim();
-  if (!nextWorkspace) return;
+function setWorkspace(nextWorkspace: string): void {
   state.workspace = nextWorkspace;
   state.sessions = [];
   state.skills = [];
   renderWorkspace();
   void loadSessions();
   void loadSkills();
+}
+
+async function openProject(): Promise<void> {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: "Open Project",
+    defaultPath: state.workspace || undefined,
+  });
+  if (typeof selected === "string") {
+    setWorkspace(selected);
+  }
 }
 
 function escapeHtml(value: string): string {
@@ -352,13 +408,8 @@ refreshButton?.addEventListener("click", () => {
   void loadSkills();
 });
 
-applyWorkspaceButton?.addEventListener("click", applyWorkspace);
-
-workspaceInput?.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    applyWorkspace();
-  }
+openProjectButton?.addEventListener("click", () => {
+  void openProject();
 });
 
 promptInput?.addEventListener("input", () => {
@@ -388,6 +439,22 @@ promptInput?.addEventListener("keydown", (event) => {
     state.activeToken = null;
     state.activeSuggestions = [];
     renderSuggestions();
+  }
+});
+
+deleteSessionButton?.addEventListener("click", () => {
+  void deleteContextSession();
+});
+
+document.addEventListener("click", (event) => {
+  if (sessionMenu && !sessionMenu.hidden && !sessionMenu.contains(event.target as Node)) {
+    hideSessionMenu();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    hideSessionMenu();
   }
 });
 

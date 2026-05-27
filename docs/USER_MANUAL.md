@@ -224,7 +224,7 @@ Sabi Agent stores conversations as append-only JSONL files under:
 ~/.sabi/sessions/<workspace-name>/<session-id>.jsonl
 ```
 
-Each session starts with a header containing the session id, creation time, and original working directory. Message entries are appended as the conversation progresses.
+Each session starts with a header containing the session id, creation time, and original working directory. Message entries are appended as the conversation progresses. Desktop-facing metadata entries, such as session titles, are also append-only JSONL entries so existing transcripts do not need to be rewritten.
 
 Session behavior:
 
@@ -233,6 +233,33 @@ Session behavior:
 - `/reload` loads the latest previous non-empty session for the same working directory, excluding the session currently open in the CLI.
 - `/clear` only clears memory for the current process; it does not delete the session file.
 - `/new` creates a fresh session file and continues there.
+- The desktop shell shows session titles when metadata exists, falls back to the first user message, and finally falls back to the short session id.
+- In the desktop shell, right-click a session in the left pane and choose `Delete Session` to remove that session file after confirmation.
+
+## Desktop shell
+
+The early Tauri desktop shell lives in `desktop/`. It currently provides a lightweight project/session frontend over the Rust library, not a complete chat UI yet.
+
+Run it from the desktop directory:
+
+```bash
+cd desktop
+npm run tauri:dev
+```
+
+Current desktop features:
+
+- Backend health indicator.
+- Native `Open Project` directory picker.
+- Workspace-scoped session list with persisted/fallback titles.
+- Right-click session deletion.
+- Prompt composer autocomplete for `@` files, `/` slash commands, and `/skill:name` skills.
+
+Still pending:
+
+- Sending prompts from the desktop composer.
+- Rendering agent events as chat/tool/diff cards.
+- Desktop approval prompts for risky tools.
 
 ## Skills
 

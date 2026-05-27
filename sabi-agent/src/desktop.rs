@@ -55,6 +55,7 @@ impl DesktopOptions {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DesktopSessionInfo {
     pub id: String,
+    pub title: Option<String>,
     pub path: PathBuf,
     pub cwd: PathBuf,
     pub message_count: usize,
@@ -172,6 +173,11 @@ impl DesktopAgent {
         emit: impl FnMut(AgentEvent),
         approve: impl FnMut(&ToolApprovalRequest) -> bool,
     ) -> Result<String> {
+        if self.session_info.title.is_none() {
+            let title = title_from_prompt(prompt);
+            self.session.set_title(&title).await?;
+            self.session_info.title = Some(title);
+        }
         let reply = run_agent_turn_with_events(
             &self.model,
             &mut self.messages,
@@ -266,6 +272,7 @@ impl From<SessionSummary> for DesktopSessionInfo {
     fn from(summary: SessionSummary) -> Self {
         Self {
             id: summary.id,
+            title: summary.title,
             path: summary.path,
             cwd: PathBuf::from(summary.header.cwd),
             message_count: summary.message_count,
@@ -297,6 +304,21 @@ fn inject_system_prompt(messages: &mut Vec<Message>, system_prompt: &str) {
         messages[0] = Message::system(system_prompt.to_string());
     } else {
         messages.insert(0, Message::system(system_prompt.to_string()));
+    }
+}
+
+fn title_from_prompt(prompt: &str) -> String {
+    let compact = prompt.split_whitespace().collect::<Vec<_>>().join(" ");
+    if compact.is_empty() {
+        return "New session".to_string();
+    }
+    const MAX_CHARS: usize = 48;
+    let mut chars = compact.chars();
+    let shortened: String = chars.by_ref().take(MAX_CHARS).collect();
+    if chars.next().is_some() {
+        format!("{shortened}...")
+    } else {
+        shortened
     }
 }
 

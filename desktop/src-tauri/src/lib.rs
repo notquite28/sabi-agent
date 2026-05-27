@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use sabi_agent::{
     desktop::{DesktopAgent, DesktopSessionInfo, DesktopSkillInfo},
+    session::SessionStore,
     skills,
 };
 use serde::Serialize;
@@ -83,6 +84,12 @@ fn list_workspace_files(
     let cwd = cwd_from_option(cwd)?;
     let query = query.unwrap_or_default().to_lowercase();
     Ok(workspace_file_suggestions(&cwd, &query)?)
+}
+
+#[tauri::command]
+async fn delete_session(cwd: Option<String>, id: String) -> Result<bool, DesktopCommandError> {
+    let cwd = cwd_from_option(cwd)?;
+    Ok(SessionStore::delete(&cwd, &id).await?)
 }
 
 fn cwd_from_option(cwd: Option<String>) -> Result<PathBuf, std::io::Error> {
@@ -165,12 +172,14 @@ fn should_skip_entry(file_name: &str) -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             health,
             current_workspace,
             list_sessions,
             list_skills,
-            list_workspace_files
+            list_workspace_files,
+            delete_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running Sabi Agent desktop application");

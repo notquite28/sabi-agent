@@ -78,7 +78,7 @@ pub enum AgentEvent {
 
 The CLI can render these events as text. A desktop app can render them as chat bubbles, tool cards, diff panels, notifications, and approval prompts.
 
-`desktop.rs` exposes `DesktopAgent` as the frontend handle. It can start or resume a session, resume a specific session id, list non-empty sessions newest-first, send a prompt with event and approval callbacks, clear or create sessions, reload the previous session, refresh skills, and return serializable state for UI headers/lists.
+`desktop.rs` exposes `DesktopAgent` as the frontend handle. It can start or resume a session, resume a specific session id, list non-empty sessions newest-first, send a prompt with event and approval callbacks, clear or create sessions, reload the previous session, refresh skills, and return serializable state for UI headers/lists. Session files can also carry append-only metadata entries, currently used for desktop session titles.
 
 ## Desktop Architecture Target
 
@@ -99,12 +99,26 @@ Target layout:
 desktop/
   src-tauri/          # Tauri shell that calls sabi-agent library code.
   src/                # Vite web UI.
-    main.ts           # Minimal session-list frontend.
+    main.ts           # Minimal project/session/composer frontend.
     styles.css        # Shell styling.
     # Future: ChatPanel, FileTree, EditorPanel, DiffViewer, ToolCard.
 ```
 
 The desktop app should not call the CLI binary and parse stdout. It should call Rust library functions or subscribe to typed event streams.
+
+Current desktop shell capabilities:
+
+- Native project directory selection through Tauri's dialog plugin.
+- Backend health check and workspace-scoped session listing.
+- Session titles from JSONL metadata, with fallback titles from the first user message.
+- Right-click session deletion through a validated Tauri command.
+- Prompt composer autocomplete for files, slash commands, and skills.
+
+Pending desktop shell capabilities:
+
+- Prompt execution wiring from the composer to `DesktopAgent::send_prompt`.
+- Streaming/rendering `AgentEvent` values as chat messages, tool cards, diffs, and errors.
+- Desktop approval cards for `write`, `edit`, and `bash`.
 
 ## Tool Approval In Desktop Mode
 

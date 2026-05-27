@@ -30,6 +30,7 @@ pub struct SessionSummary {
     pub id: String,
     pub path: std::path::PathBuf,
     pub header: SessionHeader,
+    pub title: Option<String>,
     pub message_count: usize,
     pub modified_at: OffsetDateTime,
 }
@@ -52,6 +53,13 @@ enum SessionEntry<'a> {
         timestamp: OffsetDateTime,
         message: &'a Message,
     },
+    #[serde(rename = "metadata")]
+    Metadata {
+        session_id: &'a str,
+        #[serde(with = "time::serde::rfc3339")]
+        timestamp: OffsetDateTime,
+        title: Option<&'a str>,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,6 +72,8 @@ enum StoredSessionEntry {
     },
     #[serde(rename = "message")]
     Message { message: Message },
+    #[serde(rename = "metadata")]
+    Metadata { title: Option<String> },
 }
 
 impl SessionStore {
@@ -107,6 +117,17 @@ impl SessionStore {
             id: id.to_string(),
             path,
         }))
+    }
+
+    pub async fn delete(cwd: &std::path::Path, id: &str) -> anyhow::Result<bool> {
+        let Some(session) = Self::open(cwd, id).await? else {
+            return Ok(false);
+        };
+        match tokio::fs::remove_file(&session.path).await {
+            Ok(()) => Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(error) => Err(error.into()),
+        }
     }
 
     pub async fn list(cwd: &std::path::Path) -> anyhow::Result<Vec<SessionSummary>> {
@@ -198,6 +219,7 @@ impl SessionStore {
             match entry {
                 StoredSessionEntry::Header { .. } => {}
                 StoredSessionEntry::Message { message } => messages.push(message),
+                StoredSessionEntry::Metadata { .. } => {}
             }
         }
         Ok(messages)
@@ -208,6 +230,18 @@ impl SessionStore {
             session_id: &self.id,
             timestamp: OffsetDateTime::now_utc(),
             message,
+        })
+        .await?;
+        Ok(())
+    }
+
+    pub async fn set_title(&self, title: &str) -> anyhow::Result<()> {
+        let title = title.trim();
+        let title = if title.is_empty() { None } else { Some(title) };
+        self.append_entry(&SessionEntry::Metadata {
+            session_id: &self.id,
+            timestamp: OffsetDateTime::now_utc(),
+            title,
         })
         .await?;
         Ok(())
@@ -252,12 +286,20 @@ async fn has_message_entries(path: &std::path::Path) -> anyhow::Result<bool> {
 async fn summarize_session(path: &std::path::Path) -> anyhow::Result<Option<SessionSummary>> {
     let content = tokio::fs::read_to_string(path).await?;
     let mut header = None;
+    let mut title = None;
+    let mut fallback_title = None;
     let mut message_count = 0;
     for line in content.lines() {
         let entry: StoredSessionEntry = serde_json::from_str(line)?;
         match entry {
             StoredSessionEntry::Header { header: found } => header = Some(found),
-            StoredSessionEntry::Message { .. } => message_count += 1,
+            StoredSessionEntry::Message { message } => {
+                if fallback_title.is_none() {
+                    fallback_title = fallback_title_from_message(&message);
+                }
+                message_count += 1;
+            }
+            StoredSessionEntry::Metadata { title: found } => title = found,
         }
     }
 
@@ -278,9 +320,32 @@ async fn summarize_session(path: &std::path::Path) -> anyhow::Result<Option<Sess
         id,
         path: path.to_path_buf(),
         header,
+        title: title.or(fallback_title),
         message_count,
         modified_at,
     }))
+}
+
+fn fallback_title_from_message(message: &Message) -> Option<String> {
+    let Message::User { content } = message else {
+        return None;
+    };
+    let compact = content.split_whitespace().collect::<Vec<_>>().join(" ");
+    if compact.is_empty() {
+        return None;
+    }
+    Some(truncate_title(&compact))
+}
+
+fn truncate_title(title: &str) -> String {
+    const MAX_CHARS: usize = 48;
+    let mut chars = title.chars();
+    let shortened: String = chars.by_ref().take(MAX_CHARS).collect();
+    if chars.next().is_some() {
+        format!("{shortened}...")
+    } else {
+        shortened
+    }
 }
 
 fn session_dir(cwd: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {

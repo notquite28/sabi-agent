@@ -149,10 +149,11 @@ Skill search locations:
 
 ## Milestone 7: JSONL Sessions
 
-Status: partially complete. New runs create an append-only JSONL session file with a header and message entries. `--resume` loads the latest non-empty session for the current working directory and continues appending to it. `/reload` can manually load the latest previous session into memory. Session selection is not implemented yet.
+Status: partially complete. New runs create an append-only JSONL session file with a header, message entries, and optional metadata entries such as a desktop session title. `--resume` loads the latest non-empty session for the current working directory and continues appending to it. `/reload` can manually load the latest previous session into memory. CLI session selection is not implemented yet.
 
 Deliverables:
 - Save session headers and message entries to JSONL.
+- Save append-only metadata entries such as session titles.
 - Resume the most recent session.
 - Keep the session model linear before adding branches.
 
@@ -174,10 +175,12 @@ Deliverables:
 
 ## Milestone 9: Desktop App Foundation
 
+Status: partially complete. The `desktop/` Tauri shell exists with native project selection, backend health, session listing, session title display, right-click session deletion, skill/file autocomplete, and a cleaned-up minimal layout. Prompt execution and event streaming are still pending in the frontend.
+
 Deliverables:
 - Create a separate desktop app shell, likely under `desktop/`.
 - Use Tauri for a lightweight Rust-backed desktop app.
-- Use a web UI frontend, likely React or Svelte.
+- Use a web UI frontend. The current shell uses Vanilla TypeScript/Vite; React or Svelte can be introduced if UI complexity justifies it.
 - Communicate with the Rust agent engine through Tauri commands or a local API layer.
 - Render structured agent events in the UI.
 
@@ -187,7 +190,9 @@ First desktop features:
 - Monaco-based file viewer/editor.
 - Rich diff viewer for proposed file changes.
 - Tool approval buttons for risky tools such as `write`, `edit`, and `bash`.
-- Session list and resume.
+- Session list, session title display, right-click delete, and resume.
+- Native project picker for switching workspace roots.
+- File, slash-command, and skill autocomplete in the prompt composer.
 
 Later desktop features:
 - Side-by-side file diffs.
