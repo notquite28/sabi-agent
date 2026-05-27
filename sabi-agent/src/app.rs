@@ -31,7 +31,18 @@ pub async fn run(
     // Run first-launch onboarding if the user has no config yet.
     crate::onboarding::run_if_needed().await?;
 
-    let config = AppConfig::load()?;
+    let config = match AppConfig::load() {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("\n⚠️  Setup incomplete: {}", e);
+            eprintln!("\nTo fix this, set your API key:");
+            eprintln!("  export OPENAI_API_KEY=sk-...");
+            eprintln!("\nOr create a .env file in this directory:");
+            eprintln!("  echo OPENAI_API_KEY=sk-... > .env");
+            eprintln!("\nThen try again: cargo run");
+            return Ok(());
+        }
+    };
     let cwd = config.cwd.clone();
     let model = ModelConfig {
         model: config.model,
