@@ -25,6 +25,7 @@ The Rust agent currently supports:
 - Interactive approvals for `write`, `edit`, and `bash`, with session-only `/fiwb` mode to bypass approvals.
 - Skill discovery from `.sabi/skills` and `~/.sabi/skills`, with `/skill:name` invocation.
 - Readline command history persisted across restarts.
+- First-launch onboarding that guides you through preset configuration.
 - Unit tests for diff logic.
 - Generated Fibonacci examples used to verify file tools.
 
@@ -35,6 +36,8 @@ Planned next:
 - A fuller desktop-facing API for a future Tauri/Cursor-style frontend.
 
 ## Setup
+
+On first launch, Sabi Agent will guide you through setting up default presets (model, base URL). You can also skip this and configure manually later.
 
 ```bash
 cd sabi-agent

@@ -15,6 +15,7 @@ pub mod diff;
 pub mod events;
 pub mod llm;
 pub mod messages;
+pub mod onboarding;
 pub mod session;
 pub mod skills;
 pub mod slash;

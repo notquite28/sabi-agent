@@ -32,7 +32,18 @@ It also supports:
 - `/fiwb` mode to allow risky tools for the current process only. It resets after restart.
 - Skill discovery and `/skill:name optional instructions` invocation.
 - Readline command history persisted across restarts.
+- First-launch onboarding that guides you through preset configuration.
 - Unit tests for diff logic.
+
+## First Launch
+
+On your first run, Sabi Agent will detect that you have no `~/.sabi/config.toml` and guide you through:
+
+1. Understanding where API keys belong (`.env` or environment variables)
+2. Setting your default model and base URL presets
+3. Creating your user-level config file
+
+You can skip this setup and configure manually later by editing `~/.sabi/config.toml`.
 
 ## Configuration
 
