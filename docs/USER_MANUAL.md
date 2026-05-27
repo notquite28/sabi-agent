@@ -208,7 +208,7 @@ These tools are exposed to the model during an agent turn. You do not call them 
 | --- | --- | --- |
 | `read` | Read a UTF-8 text file. | Supports optional 1-indexed `offset` and `limit`; default limit is 200 lines. |
 | `write` | Create or overwrite a UTF-8 text file. | Creates parent directories. Emits file-change events and a diff when overwriting changed content. Requires approval in interactive mode. |
-| `edit` | Replace one exact, unique text snippet in a UTF-8 text file. | Rejects empty replacements, no-op replacements, missing snippets, and non-unique snippets. Requires approval in interactive mode. |
+| `edit` | Replace one exact, unique text snippet in a UTF-8 text file. | Rejects empty `old_text`, no-op replacements, missing snippets, and non-unique snippets. Requires approval in interactive mode. |
 | `bash` | Run a shell command in the current working directory. | Supports optional timeout seconds. Returns combined stdout and stderr plus exit status. Requires approval in interactive mode. |
 | `ls` | List files and directories in a directory. | Defaults to the current working directory. Directories end with `/`. |
 | `grep` | Search file contents using `rg`. | Supports regex pattern, optional path, optional include glob, and result limit. Requires `ripgrep`. |
