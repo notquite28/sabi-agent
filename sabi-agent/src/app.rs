@@ -111,6 +111,7 @@ pub async fn run(
                 &mut fiwb_mode,
                 &mut skills,
                 &model,
+                &system_prompt,
             )
             .await?
             {
@@ -186,6 +187,7 @@ async fn handle_command(
     fiwb_mode: &mut bool,
     skills: &mut Vec<Skill>,
     model: &ModelConfig,
+    system_prompt: &str,
 ) -> Result<bool> {
     match command {
         SlashCommand::Help => {
@@ -195,11 +197,15 @@ async fn handle_command(
         SlashCommand::Quit => Ok(true),
         SlashCommand::Clear => {
             messages.clear();
+            // Re-inject system prompt so the agent still has identity and guidelines.
+            inject_system_prompt(messages, system_prompt);
             println!("conversation cleared");
             Ok(false)
         }
         SlashCommand::New => {
             messages.clear();
+            // Re-inject system prompt for the fresh session.
+            inject_system_prompt(messages, system_prompt);
             *session = SessionStore::create(cwd).await?;
             println!("new session: {}", session.path.display());
             Ok(false)
@@ -231,6 +237,8 @@ async fn handle_command(
             let count = loaded.len();
             let path = latest.path.display().to_string();
             *messages = loaded;
+            // Re-inject system prompt because persisted sessions never store it.
+            inject_system_prompt(messages, system_prompt);
             *session = latest;
             *skills = skills::discover(cwd)?;
             println!("loaded {count} messages from {path}");

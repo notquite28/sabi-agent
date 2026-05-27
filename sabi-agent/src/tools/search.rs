@@ -73,7 +73,9 @@ pub async fn run_web_search(args: Value) -> Result<ToolOutput> {
 
     let api_key = exa_api_key()?;
 
-    match search_with_exa(query, num_results, &api_key).await {
+    // web_search always uses /search so that `num_results` is honoured.
+    // /answer does not accept a result-count parameter.
+    match search_with_exa_direct(query, num_results, &api_key).await {
         Ok(text) => Ok(ToolOutput {
             content: text,
             is_error: false,
@@ -119,6 +121,7 @@ fn exa_api_key() -> Result<String> {
         .context("EXA_API_KEY environment variable not set")
 }
 
+/// Try /answer first (synthesised answer) and fall back to /search.
 async fn search_with_exa(query: &str, num_results: usize, api_key: &str) -> Result<String> {
     let client = Client::new();
 
@@ -146,6 +149,13 @@ async fn search_with_exa(query: &str, num_results: usize, api_key: &str) -> Resu
     }
 
     // Fall back to /search for raw results.
+    search_with_exa_direct(query, num_results, api_key).await
+}
+
+/// Go straight to /search so that `numResults` is always honoured.
+async fn search_with_exa_direct(query: &str, num_results: usize, api_key: &str) -> Result<String> {
+    let client = Client::new();
+
     let response = client
         .post(EXA_SEARCH_URL)
         .header("x-api-key", api_key)

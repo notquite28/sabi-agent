@@ -45,6 +45,10 @@ pub async fn run(args: Value, cwd: &Path) -> Result<String> {
         .with_context(|| format!("failed to read {}", path.display()))?;
 
     let lines: Vec<&str> = content.lines().collect();
+    // offset is documented as 1-indexed; reject 0 to avoid silent off-by-one bugs.
+    if let Some(0) = args.offset {
+        anyhow::bail!("offset must be >= 1 (1-indexed)");
+    }
     let start = args.offset.unwrap_or(1).saturating_sub(1);
     let limit = args.limit.unwrap_or(200);
     let end = usize::min(start + limit, lines.len());
