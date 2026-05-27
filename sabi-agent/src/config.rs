@@ -86,9 +86,8 @@ fn load_user_config() -> Option<ConfigFile> {
 }
 
 fn user_config_path() -> Option<PathBuf> {
-    let project_dirs =
-        directories::ProjectDirs::from("dev", "sabi", "sabi-agent")?;
-    Some(project_dirs.config_local_dir().join("config.toml"))
+    let home = std::env::var_os("HOME")?;
+    Some(PathBuf::from(home).join(".sabi").join("config.toml"))
 }
 
 fn load_project_config(cwd: &Path) -> Option<ConfigFile> {

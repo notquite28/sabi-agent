@@ -36,8 +36,6 @@ It also supports:
 
 ## Configuration
 
-## Configuration
-
 ### API Keys (Required)
 
 API keys must come from environment variables or a `.env` file in the working directory. They are never stored in config files.
