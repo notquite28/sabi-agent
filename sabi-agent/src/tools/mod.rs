@@ -14,6 +14,7 @@ pub mod find;
 pub mod grep;
 pub mod ls;
 pub mod read;
+pub mod search;
 pub mod write;
 
 use std::path::Path;
@@ -46,6 +47,8 @@ pub fn builtin_tool_specs() -> Vec<ToolSpec> {
         ls::spec(),
         grep::spec(),
         find::spec(),
+        search::web_search_spec(),
+        search::exa_search_spec(),
     ]
 }
 
@@ -58,6 +61,8 @@ pub async fn run_tool(name: &str, args: Value, cwd: &Path) -> ToolOutput {
         "ls" => ls::run(args, cwd).await.map(success),
         "grep" => grep::run(args, cwd).await.map(success),
         "find" => find::run(args, cwd).await.map(success),
+        "web_search" => search::run_web_search(args).await,
+        "exa_search" => search::run_exa_search(args).await,
         _ => Err(anyhow::anyhow!("unknown tool: {name}")),
     };
 
