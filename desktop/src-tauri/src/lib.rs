@@ -4,7 +4,7 @@
 //! - `sabi-agent/src/desktop.rs`
 //!
 //! Simplifications:
-//! - Starts with health and session-list commands only.
+//! - Workspace selection is frontend state; commands accept explicit cwd strings.
 //! - Prompt execution, event streaming, and approval responses are added after the shell is stable.
 
 use std::path::PathBuf;
@@ -34,7 +34,13 @@ fn health() -> &'static str {
 }
 
 #[tauri::command]
-async fn list_sessions(cwd: Option<String>) -> Result<Vec<DesktopSessionInfo>, DesktopCommandError> {
+fn current_workspace() -> Result<String, DesktopCommandError> {
+    Ok(std::env::current_dir()?.display().to_string())
+}
+#[tauri::command]
+async fn list_sessions(
+    cwd: Option<String>,
+) -> Result<Vec<DesktopSessionInfo>, DesktopCommandError> {
     let cwd = match cwd {
         Some(cwd) => PathBuf::from(cwd),
         None => std::env::current_dir()?,
@@ -45,7 +51,11 @@ async fn list_sessions(cwd: Option<String>) -> Result<Vec<DesktopSessionInfo>, D
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![health, list_sessions])
+        .invoke_handler(tauri::generate_handler![
+            health,
+            current_workspace,
+            list_sessions
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Sabi Agent desktop application");
 }
