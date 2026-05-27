@@ -78,7 +78,7 @@ pub enum AgentEvent {
 
 The CLI can render these events as text. A desktop app can render them as chat bubbles, tool cards, diff panels, notifications, and approval prompts.
 
-`desktop.rs` exposes `DesktopAgent` as the frontend handle. It can start or resume a session, send a prompt with event and approval callbacks, clear or create sessions, reload the previous session, refresh skills, and return serializable state for UI headers/lists.
+`desktop.rs` exposes `DesktopAgent` as the frontend handle. It can start or resume a session, resume a specific session id, list non-empty sessions newest-first, send a prompt with event and approval callbacks, clear or create sessions, reload the previous session, refresh skills, and return serializable state for UI headers/lists.
 
 ## Desktop Architecture Target
 

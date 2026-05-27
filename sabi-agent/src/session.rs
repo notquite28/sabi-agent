@@ -26,6 +26,15 @@ pub struct SessionHeader {
 }
 
 #[derive(Debug, Clone)]
+pub struct SessionSummary {
+    pub id: String,
+    pub path: std::path::PathBuf,
+    pub header: SessionHeader,
+    pub message_count: usize,
+    pub modified_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone)]
 pub struct SessionStore {
     pub id: String,
     pub path: std::path::PathBuf,
@@ -79,6 +88,56 @@ impl SessionStore {
             .append_entry(&SessionEntry::Header { header: &header })
             .await?;
         Ok(store)
+    }
+
+    pub async fn open(cwd: &std::path::Path, id: &str) -> anyhow::Result<Option<Self>> {
+        if Uuid::parse_str(id).is_err() {
+            return Ok(None);
+        }
+        let path = session_dir(cwd)?.join(format!("{id}.jsonl"));
+        match tokio::fs::metadata(&path).await {
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error.into()),
+        }
+        if !matches_cwd(&path, cwd).await.unwrap_or(false) {
+            return Ok(None);
+        }
+        Ok(Some(Self {
+            id: id.to_string(),
+            path,
+        }))
+    }
+
+    pub async fn list(cwd: &std::path::Path) -> anyhow::Result<Vec<SessionSummary>> {
+        let dir = session_dir(cwd)?;
+        let mut entries = match tokio::fs::read_dir(&dir).await {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(error.into()),
+        };
+
+        let mut sessions = Vec::new();
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.extension().and_then(|extension| extension.to_str()) != Some("jsonl") {
+                continue;
+            }
+            let Some(summary) = summarize_session(&path).await.unwrap_or(None) else {
+                continue;
+            };
+            if summary.header.cwd != cwd.display().to_string() || summary.message_count == 0 {
+                continue;
+            }
+            sessions.push(summary);
+        }
+
+        sessions.sort_by(|left, right| right.modified_at.cmp(&left.modified_at));
+        Ok(sessions)
+    }
+
+    pub async fn summary(&self) -> anyhow::Result<Option<SessionSummary>> {
+        summarize_session(&self.path).await
     }
 
     pub async fn latest(cwd: &std::path::Path) -> anyhow::Result<Option<Self>> {
@@ -188,6 +247,40 @@ async fn has_message_entries(path: &std::path::Path) -> anyhow::Result<bool> {
         }
     }
     Ok(false)
+}
+
+async fn summarize_session(path: &std::path::Path) -> anyhow::Result<Option<SessionSummary>> {
+    let content = tokio::fs::read_to_string(path).await?;
+    let mut header = None;
+    let mut message_count = 0;
+    for line in content.lines() {
+        let entry: StoredSessionEntry = serde_json::from_str(line)?;
+        match entry {
+            StoredSessionEntry::Header { header: found } => header = Some(found),
+            StoredSessionEntry::Message { .. } => message_count += 1,
+        }
+    }
+
+    let Some(header) = header else {
+        return Ok(None);
+    };
+    let modified_at = tokio::fs::metadata(path)
+        .await?
+        .modified()
+        .map(OffsetDateTime::from)?;
+    let id = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("unknown-session")
+        .to_string();
+
+    Ok(Some(SessionSummary {
+        id,
+        path: path.to_path_buf(),
+        header,
+        message_count,
+        modified_at,
+    }))
 }
 
 fn session_dir(cwd: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {

@@ -13,13 +13,14 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use time::OffsetDateTime;
 
 use crate::agent::run_agent_turn_with_events;
 use crate::config::AppConfig;
 use crate::events::AgentEvent;
 use crate::llm::ModelConfig;
 use crate::messages::Message;
-use crate::session::SessionStore;
+use crate::session::{SessionStore, SessionSummary};
 use crate::skills::{self, Skill};
 use crate::system_prompt::{self, BuildOptions};
 use crate::tools::builtin_tool_specs;
@@ -57,6 +58,10 @@ pub struct DesktopSessionInfo {
     pub path: PathBuf,
     pub cwd: PathBuf,
     pub message_count: usize,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub modified_at: OffsetDateTime,
 }
 
 /// Snapshot of the current in-memory frontend state.
@@ -83,6 +88,7 @@ pub struct DesktopAgent {
     skills: Vec<Skill>,
     messages: Vec<Message>,
     session: SessionStore,
+    session_info: DesktopSessionInfo,
 }
 
 impl DesktopAgent {
@@ -93,6 +99,7 @@ impl DesktopAgent {
         let mut messages = Vec::new();
         inject_system_prompt(&mut messages, &system_prompt);
         let session = SessionStore::create(&options.cwd).await?;
+        let session_info = session_info_from_store(&session, &options.cwd).await?;
 
         Ok(Self {
             cwd: options.cwd,
@@ -101,6 +108,7 @@ impl DesktopAgent {
             skills,
             messages,
             session,
+            session_info,
         })
     }
 
@@ -113,6 +121,7 @@ impl DesktopAgent {
             None => (Vec::new(), SessionStore::create(&options.cwd).await?),
         };
         inject_system_prompt(&mut messages, &system_prompt);
+        let session_info = session_info_from_store(&session, &options.cwd).await?;
 
         Ok(Self {
             cwd: options.cwd,
@@ -121,7 +130,39 @@ impl DesktopAgent {
             skills,
             messages,
             session,
+            session_info,
         })
+    }
+
+    /// Resume a specific session id for `options.cwd`.
+    pub async fn resume_session(options: DesktopOptions, session_id: &str) -> Result<Option<Self>> {
+        let Some(session) = SessionStore::open(&options.cwd, session_id).await? else {
+            return Ok(None);
+        };
+        let skills = skills::discover(&options.cwd)?;
+        let system_prompt = build_system_prompt(&options.cwd, &skills);
+        let mut messages = session.load_messages().await?;
+        inject_system_prompt(&mut messages, &system_prompt);
+        let session_info = session_info_from_store(&session, &options.cwd).await?;
+
+        Ok(Some(Self {
+            cwd: options.cwd,
+            model: options.model,
+            system_prompt,
+            skills,
+            messages,
+            session,
+            session_info,
+        }))
+    }
+
+    /// List non-empty sessions for `cwd`, newest modified first.
+    pub async fn list_sessions(cwd: &Path) -> Result<Vec<DesktopSessionInfo>> {
+        Ok(SessionStore::list(cwd)
+            .await?
+            .into_iter()
+            .map(DesktopSessionInfo::from)
+            .collect())
     }
 
     /// Send one user prompt through the agent loop.
@@ -131,7 +172,7 @@ impl DesktopAgent {
         emit: impl FnMut(AgentEvent),
         approve: impl FnMut(&str, &Value) -> bool,
     ) -> Result<String> {
-        run_agent_turn_with_events(
+        let reply = run_agent_turn_with_events(
             &self.model,
             &mut self.messages,
             &self.cwd,
@@ -140,7 +181,9 @@ impl DesktopAgent {
             emit,
             approve,
         )
-        .await
+        .await?;
+        self.session_info = session_info_from_store(&self.session, &self.cwd).await?;
+        Ok(reply)
     }
 
     /// Clear only the in-memory transcript and keep the current session file.
@@ -154,6 +197,7 @@ impl DesktopAgent {
         self.messages.clear();
         inject_system_prompt(&mut self.messages, &self.system_prompt);
         self.session = SessionStore::create(&self.cwd).await?;
+        self.session_info = session_info_from_store(&self.session, &self.cwd).await?;
         Ok(())
     }
 
@@ -167,6 +211,7 @@ impl DesktopAgent {
         self.messages = latest.load_messages().await?;
         inject_system_prompt(&mut self.messages, &self.system_prompt);
         self.session = latest;
+        self.session_info = session_info_from_store(&self.session, &self.cwd).await?;
         self.refresh_skills()?;
         Ok(true)
     }
@@ -188,17 +233,13 @@ impl DesktopAgent {
     }
 
     pub fn session_info(&self) -> DesktopSessionInfo {
-        let message_count = self
+        let mut info = self.session_info.clone();
+        info.message_count = self
             .messages
             .iter()
             .filter(|message| !matches!(message, Message::System { .. }))
             .count();
-        DesktopSessionInfo {
-            id: self.session.id.clone(),
-            path: self.session.path.clone(),
-            cwd: self.cwd.clone(),
-            message_count,
-        }
+        info
     }
 
     pub fn skill_info(&self) -> Vec<DesktopSkillInfo> {
@@ -219,6 +260,28 @@ impl DesktopAgent {
     pub fn session(&self) -> &SessionStore {
         &self.session
     }
+}
+
+impl From<SessionSummary> for DesktopSessionInfo {
+    fn from(summary: SessionSummary) -> Self {
+        Self {
+            id: summary.id,
+            path: summary.path,
+            cwd: PathBuf::from(summary.header.cwd),
+            message_count: summary.message_count,
+            created_at: summary.header.created_at,
+            modified_at: summary.modified_at,
+        }
+    }
+}
+
+async fn session_info_from_store(session: &SessionStore, cwd: &Path) -> Result<DesktopSessionInfo> {
+    let Some(summary) = session.summary().await? else {
+        anyhow::bail!("session {} has no header", session.path.display());
+    };
+    let mut info = DesktopSessionInfo::from(summary);
+    info.cwd = cwd.to_path_buf();
+    Ok(info)
 }
 
 fn build_system_prompt(cwd: &Path, skills: &[Skill]) -> String {
@@ -273,6 +336,71 @@ mod tests {
         assert_eq!(state.messages_len, 1);
         assert!(state.skills.iter().any(|skill| skill.name == "init"));
         assert!(state.skills.iter().any(|skill| skill.name == "review"));
+
+        restore_home(old_home);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn list_sessions_returns_non_empty_sessions_newest_first() {
+        let temp = tempfile::tempdir().unwrap();
+        let old_home = std::env::var_os("HOME");
+        std::env::set_var("HOME", temp.path());
+        let options = test_options(temp.path().to_path_buf());
+
+        let empty = DesktopAgent::start_new(options.clone()).await.unwrap();
+        let first = DesktopAgent::start_new(options.clone()).await.unwrap();
+        first
+            .session()
+            .append_message(&Message::user("older"))
+            .await
+            .unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        let second = DesktopAgent::start_new(options.clone()).await.unwrap();
+        second
+            .session()
+            .append_message(&Message::user("newer"))
+            .await
+            .unwrap();
+
+        let sessions = DesktopAgent::list_sessions(&options.cwd).await.unwrap();
+
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(sessions[0].id, second.session().id);
+        assert_eq!(sessions[1].id, first.session().id);
+        assert!(sessions
+            .iter()
+            .all(|session| session.id != empty.session().id));
+        assert_eq!(sessions[0].message_count, 1);
+
+        restore_home(old_home);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn resume_session_loads_requested_session_by_id() {
+        let temp = tempfile::tempdir().unwrap();
+        let old_home = std::env::var_os("HOME");
+        std::env::set_var("HOME", temp.path());
+        let options = test_options(temp.path().to_path_buf());
+
+        let agent = DesktopAgent::start_new(options.clone()).await.unwrap();
+        agent
+            .session()
+            .append_message(&Message::user("specific"))
+            .await
+            .unwrap();
+
+        let resumed = DesktopAgent::resume_session(options, &agent.session().id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(resumed.session().id, agent.session().id);
+        assert!(resumed
+            .messages()
+            .iter()
+            .any(|message| matches!(message, Message::User { content } if content == "specific")));
 
         restore_home(old_home);
     }
