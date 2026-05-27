@@ -18,7 +18,7 @@ This repository is a learning project. The goal is to understand and rebuild the
 The Rust agent currently supports:
 
 - OpenAI-compatible chat completions.
-- AveMujicaAPI defaults via environment variables, a working-directory `.env`, or a `sabi.toml` config file.
+- AveMujicaAPI defaults from `~/.sabi/config.toml`, environment overrides, or a working-directory `sabi.toml`.
 - Tool calls for `read`, `write`, `edit`, `bash`, `ls`, `grep`, `find`, `web_search`, and `exa_search`.
 - Structured agent events used by the CLI renderer.
 - JSONL session files with `--resume` for the latest non-empty session in the current working directory.
@@ -37,44 +37,29 @@ Planned next:
 
 ## Setup
 
-On first launch, Sabi Agent will guide you through setting up default presets (model, base URL). You can also skip this and configure manually later.
+On first launch, Sabi Agent will guide you through setting up default presets (model, base URL) and API keys under `~/.sabi/`. You can also skip this and configure manually later.
 
-```bash
-cd sabi-agent
-cp .env.example .env
+Everything lives in `~/.sabi/`:
+
+```
+~/.sabi/
+  config.toml    – presets (model, base_url)
+  auth.toml      – API keys (600 permissions, owner-only)
+  sessions/      – conversation JSONL files
+  history        – command history
 ```
 
-Current local `.env` keys (API keys only):
+**API keys** are loaded in this order:
+1. `~/.sabi/auth.toml` (created during onboarding)
+2. Environment variables (`OPENAI_API_KEY`, `EXA_API_KEY`) for process-local overrides
 
-```dotenv
-OPENAI_API_KEY=...
-EXA_API_KEY=...
-```
+**Presets** (model, base URL) are loaded in this order:
+1. `sabi.toml` in working directory
+2. `~/.sabi/config.toml`
+3. `RUST_PI_MODEL` / `RUST_PI_BASE_URL` env vars
+4. Defaults: `gpt-5.5` at `https://api.avemujica.moe/v1`
 
-Presets (model, base URL) are loaded from config files — never from `.env`:
-
-1. **Project-level**: `sabi.toml` in the working directory
-2. **User-level**: `~/.sabi/config.toml`
-3. **Environment**: `RUST_PI_MODEL`, `RUST_PI_BASE_URL`
-4. **Defaults**: `gpt-5.5` at `https://api.avemujica.moe/v1`
-
-Example `~/.sabi/config.toml`:
-
-```toml
-model = "gpt-5.5"
-base_url = "https://api.avemujica.moe/v1"
-```
-
-Example per-project `sabi.toml`:
-
-```toml
-model = "gpt-4o-mini"
-base_url = "https://api.openai.com/v1"
-```
-
-Do not commit `.env`, `sabi.toml`, or provider credentials.
-
-`.env` is loaded from the process current working directory. If you run the binary from another directory, export the required variables explicitly or provide a `.env` in that directory.
+Do not commit `sabi.toml` or provider credentials.
 
 ## Commands
 
@@ -90,7 +75,7 @@ cargo run -- "Say exactly: ok"
 cargo run --example fibonacci
 ```
 
-`--check-provider` makes a real provider call and requires `OPENAI_API_KEY`.
+`--check-provider` makes a real provider call and requires `openai_api_key` in `~/.sabi/auth.toml` or `OPENAI_API_KEY` in the environment.
 
 ## Reference
 

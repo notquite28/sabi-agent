@@ -39,62 +39,68 @@ It also supports:
 
 On your first run, Sabi Agent will detect that you have no `~/.sabi/config.toml` and guide you through:
 
-1. Understanding where API keys belong (`.env` or environment variables)
-2. Setting your default model and base URL presets
-3. Creating your user-level config file
+1. Setting your default model and base URL presets (saved to `~/.sabi/config.toml`)
+2. Storing your API keys (saved to `~/.sabi/auth.toml` with restricted permissions)
+3. Understanding the `~/.sabi/` directory layout
 
-You can skip this setup and configure manually later by editing `~/.sabi/config.toml`.
+You can skip this setup and configure manually later by editing files in `~/.sabi/`.
+
+## The ~/.sabi/ Directory
+
+Everything lives in one place:
+
+```
+~/.sabi/
+  config.toml    – presets (model, base_url)
+  auth.toml      – API keys (600 permissions, owner-only)
+  sessions/      – conversation JSONL files
+  history        – command history
+```
 
 ## Configuration
 
-### API Keys (Required)
+### API Keys
 
-API keys must come from environment variables or a `.env` file in the working directory. They are never stored in config files.
+API keys are loaded in this order of precedence:
 
-```bash
-export OPENAI_API_KEY=...
-export EXA_API_KEY=...
+1. **User auth file**: `~/.sabi/auth.toml` created during onboarding with 600 permissions
+2. **Environment variables**: `OPENAI_API_KEY`, `EXA_API_KEY` for process-local overrides
+
+Example `~/.sabi/auth.toml`:
+
+```toml
+openai_api_key = "sk-..."
+exa_api_key = "your-exa-key"
 ```
 
-Or in a `.env` file:
+### Presets (Model, Base URL)
 
-```dotenv
-OPENAI_API_KEY=...
-EXA_API_KEY=...
-```
-
-### Presets (Optional)
-
-Model and base URL presets are loaded from config files in this order of precedence:
+Presets are loaded in this order of precedence:
 
 1. **Project-level**: `sabi.toml` in the working directory
 2. **User-level**: `~/.sabi/config.toml`
 3. **Environment**: `RUST_PI_MODEL`, `RUST_PI_BASE_URL`
 4. **Defaults**: `gpt-5.5` at `https://api.avemujica.moe/v1`
 
-Example `~/.sabi/config.toml` (user-level defaults):
+Example `~/.sabi/config.toml` (both naming styles work):
 
 ```toml
 model = "gpt-5.5"
 base_url = "https://api.avemujica.moe/v1"
+
+# Or use the env var names:
+# RUST_PI_MODEL = "gpt-5.5"
+# RUST_PI_BASE_URL = "https://api.avemujica.moe/v1"
 ```
 
-Example per-project `sabi.toml` (overrides user-level):
+Example per-project `sabi.toml`:
 
 ```toml
 model = "gpt-4o-mini"
 base_url = "https://api.openai.com/v1"
 ```
 
-AveMujicaAPI docs:
-
-- Base URL: `https://api.avemujica.moe/v1`
-- Model examples: `gpt-5.5`, or any exact model ID available to your API key
-- Model list endpoint: `https://api.avemujica.moe/v1/models`
-
 Invalid config files print a warning but do not crash.
-
-`.env` is loaded from the process current working directory. Running with `--manifest-path` from another directory will not automatically load `sabi-agent/.env`; export the variables explicitly if needed.
 
 ## Run
 

@@ -187,9 +187,9 @@ The first provider should be OpenAI-compatible because it keeps the first agent 
 
 Minimum config:
 
-- `OPENAI_API_KEY`
-- `RUST_PI_MODEL`, defaulting to a configurable model string.
-- `RUST_PI_BASE_URL`, defaulting to the OpenAI API base URL.
-- Optional `sabi.toml` in the working directory for per-project overrides.
+- `~/.sabi/auth.toml` for API keys.
+- `~/.sabi/config.toml` for user-level model and base URL presets.
+- Environment variables (`OPENAI_API_KEY`, `RUST_PI_MODEL`, `RUST_PI_BASE_URL`) for process-local overrides.
+- Optional `sabi.toml` in the working directory for per-project model/base URL overrides.
 
 Anthropic and provider abstraction can come after the basic tool loop works.

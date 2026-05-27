@@ -20,14 +20,15 @@
 - Interactive CLI: `cargo run`.
 - Resume latest non-empty session for the current CWD: `cargo run -- --resume`.
 - Harmless one-shot smoke test: `cargo run -- "Say exactly: ok"`.
-- Provider smoke test: `cargo run -- --check-provider`; this makes real API calls and requires `OPENAI_API_KEY`.
+- Provider smoke test: `cargo run -- --check-provider`; this makes real API calls and requires `openai_api_key` in `~/.sabi/auth.toml` or `OPENAI_API_KEY` in the environment.
 
 ## Provider And Config
 
-- `.env` is loaded from the process current working directory via `dotenvy`; running with `--manifest-path` from another directory will not load `sabi-agent/.env`.
-- API keys (`OPENAI_API_KEY`, `EXA_API_KEY`) must come from `.env` or environment variables only — never from config files.
-- Presets (`model`, `base_url`) are loaded from config files in this order: `sabi.toml` (project) > `~/.sabi/config.toml` (user) > `RUST_PI_MODEL`/`RUST_PI_BASE_URL` (env) > defaults (`gpt-5.5` at AveMujicaAPI).
-- Never commit `.env`, `sabi.toml`, or provider credentials.
+- Everything lives in `~/.sabi/`: config, auth, sessions, history.
+- Working-directory `.env` files are not loaded; persistent user credentials belong in `~/.sabi/auth.toml`.
+- API keys (`OPENAI_API_KEY`, `EXA_API_KEY`) are loaded in this order: `~/.sabi/auth.toml` (created during onboarding with 600 permissions) > environment variables for process-local overrides.
+- Presets (`model`, `base_url`) are loaded in this order: `sabi.toml` (project) > `~/.sabi/config.toml` (user) > `RUST_PI_MODEL`/`RUST_PI_BASE_URL` (env) > defaults (`gpt-5.5` at AveMujicaAPI).
+- Never commit `sabi.toml` or provider credentials.
 
 ## Current Capabilities
 

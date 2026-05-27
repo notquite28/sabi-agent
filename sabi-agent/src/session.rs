@@ -191,14 +191,11 @@ async fn has_message_entries(path: &std::path::Path) -> anyhow::Result<bool> {
 }
 
 fn session_dir(cwd: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
-    let project_dirs = directories::ProjectDirs::from("dev", "sabi", "sabi-agent")
+    let base = crate::config::sessions_dir()
         .ok_or_else(|| anyhow::anyhow!("failed to resolve session directory"))?;
     let workspace_name = cwd
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or("workspace");
-    Ok(project_dirs
-        .data_local_dir()
-        .join("sessions")
-        .join(workspace_name))
+    Ok(base.join(workspace_name))
 }

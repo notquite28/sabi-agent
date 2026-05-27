@@ -6,16 +6,16 @@
 //!
 //! Simplifications:
 //! - Only direct Exa API. No MCP proxy, no Perplexity/Gemini fallback chain.
-//! - Requires EXA_API_KEY env var.
+//! - Requires `exa_api_key` in `~/.sabi/auth.toml` or `EXA_API_KEY` in the environment.
 //! - No budget tracking or activity monitor.
 
-use std::env;
-
 use anyhow::{Context, Result};
+
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::config;
 use crate::tools::{object_schema, ToolOutput, ToolSpec};
 
 const EXA_SEARCH_URL: &str = "https://api.exa.ai/search";
@@ -24,7 +24,7 @@ const EXA_ANSWER_URL: &str = "https://api.exa.ai/answer";
 pub fn web_search_spec() -> ToolSpec {
     ToolSpec {
         name: "web_search",
-        description: "Search the web for information. Returns results with sources and snippets. Requires EXA_API_KEY environment variable.",
+        description: "Search the web for information. Returns results with sources and snippets. Requires exa_api_key in ~/.sabi/auth.toml or EXA_API_KEY in the environment.",
         parameters: object_schema(
             json!({
                 "query": {
@@ -46,7 +46,7 @@ pub fn web_search_spec() -> ToolSpec {
 pub fn exa_search_spec() -> ToolSpec {
     ToolSpec {
         name: "exa_search",
-        description: "Search for code examples, documentation, and API references using Exa's neural code search. Requires EXA_API_KEY environment variable.",
+        description: "Search for code examples, documentation, and API references using Exa's neural code search. Requires exa_api_key in ~/.sabi/auth.toml or EXA_API_KEY in the environment.",
         parameters: object_schema(
             json!({
                 "query": {
@@ -115,10 +115,9 @@ pub async fn run_exa_search(args: Value) -> Result<ToolOutput> {
 }
 
 fn exa_api_key() -> Result<String> {
-    env::var("EXA_API_KEY")
-        .ok()
-        .filter(|key| !key.trim().is_empty())
-        .context("EXA_API_KEY environment variable not set")
+    config::exa_api_key().context(
+        "EXA_API_KEY not found. Add exa_api_key to ~/.sabi/auth.toml or set it in your environment",
+    )
 }
 
 /// Try /answer first (synthesised answer) and fall back to /search.

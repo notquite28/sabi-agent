@@ -45,7 +45,7 @@ The Rust version should also keep the core agent code reusable for non-terminal 
 
 `grep` and `find` use external `rg` and `fd`. Pi can download missing tools; the Rust version currently reports a clear error if they are not installed.
 
-`web_search` and `exa_search` use the Exa API directly (no MCP proxy). They require an `EXA_API_KEY` environment variable. `web_search` tries `/answer` first for a synthesized response, then falls back to `/search`. `exa_search` enriches queries with code-focused terms and uses the same Exa API.
+`web_search` and `exa_search` use the Exa API directly (no MCP proxy). They require `exa_api_key` in `~/.sabi/auth.toml` or `EXA_API_KEY` in the process environment. `web_search` tries `/answer` first for a synthesized response, then falls back to `/search`. `exa_search` enriches queries with code-focused terms and uses the same Exa API.
 
 `write` and `edit` emit diff/file events so frontends can render file changes without scraping text output.
 
@@ -58,7 +58,7 @@ The Rust version supports four config sources, in order of precedence:
 3. Environment variables (`RUST_PI_MODEL`, `RUST_PI_BASE_URL`).
 4. Hardcoded defaults (AveMujicaAPI `gpt-5.5`).
 
-API keys (`OPENAI_API_KEY`, `EXA_API_KEY`) must come from `.env` or the environment only — they are never read from config files. This separation keeps secrets out of version-controlled config files.
+API keys (`OPENAI_API_KEY`, `EXA_API_KEY`) are stored in `~/.sabi/auth.toml` with restricted permissions. Environment variables are still accepted as process-local overrides; working-directory `.env` files are not loaded.
 
 Invalid config files print a warning instead of crashing.
 

@@ -35,11 +35,12 @@ pub async fn run(
         Ok(config) => config,
         Err(e) => {
             eprintln!("\n⚠️  Setup incomplete: {}", e);
-            eprintln!("\nTo fix this, set your API key:");
-            eprintln!("  export OPENAI_API_KEY=sk-...");
-            eprintln!("\nOr create a .env file in this directory:");
-            eprintln!("  echo OPENAI_API_KEY=sk-... > .env");
-            eprintln!("\nThen try again: cargo run");
+            eprintln!("\nTo fix this, add your API key to ~/.sabi/auth.toml:");
+            eprintln!("  openai_api_key = \"sk-...\"");
+            eprintln!(
+                "\nOr run without a stored key by exporting OPENAI_API_KEY for this process."
+            );
+            eprintln!("Then try again: cargo run");
             return Ok(());
         }
     };
@@ -107,7 +108,7 @@ pub async fn run(
     }
     let mut fiwb_mode = false;
 
-    let history_path = history_file_path();
+    let history_path = crate::config::history_path();
     let mut editor = DefaultEditor::new()?;
     if let Some(ref path) = history_path {
         let _ = editor.load_history(path);
@@ -156,13 +157,6 @@ pub async fn run(
     }
 
     Ok(())
-}
-
-/// Returns the path to the readline history file, or None if the data directory
-/// cannot be resolved.
-fn history_file_path() -> Option<std::path::PathBuf> {
-    let project_dirs = directories::ProjectDirs::from("dev", "sabi", "sabi-agent")?;
-    Some(project_dirs.data_local_dir().join("history"))
 }
 
 fn inject_system_prompt(messages: &mut Vec<Message>, system_prompt: &str) {
