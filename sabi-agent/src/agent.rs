@@ -26,7 +26,7 @@ pub struct AgentState {
     pub messages_len: usize,
 }
 
-const MAX_TOOL_ROUNDS: usize = 8;
+const MAX_TOOL_ROUNDS: usize = 30;
 
 pub async fn run_agent_turn(
     model: &ModelConfig,

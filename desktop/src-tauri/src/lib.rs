@@ -5,17 +5,21 @@
 //!
 //! Simplifications:
 //! - Workspace selection is frontend state; commands accept explicit cwd strings.
-//! - Prompt execution, event streaming, and approval responses are added after the shell is stable.
+//! - Prompt execution returns a batch of events; live event streaming and approval UI can come later.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use sabi_agent::{
-    desktop::{DesktopAgent, DesktopSessionInfo, DesktopSkillInfo},
+    config::AppConfig,
+    desktop::{DesktopAgent, DesktopOptions, DesktopSessionInfo, DesktopSkillInfo},
+    events::AgentEvent,
     session::SessionStore,
     skills,
 };
 use serde::Serialize;
+use tauri::State;
+use tokio::sync::Mutex;
 
 const MAX_FILE_SUGGESTIONS: usize = 80;
 const MAX_WALK_ENTRIES: usize = 4_000;
@@ -33,6 +37,18 @@ struct DesktopFileSuggestion {
     path: String,
     name: String,
     is_dir: bool,
+}
+
+#[derive(Default)]
+struct DesktopAppState {
+    agent: Mutex<Option<DesktopAgent>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct PromptResponse {
+    reply: String,
+    events: Vec<AgentEvent>,
+    session: DesktopSessionInfo,
 }
 
 impl serde::Serialize for DesktopCommandError {
@@ -92,11 +108,57 @@ async fn delete_session(cwd: Option<String>, id: String) -> Result<bool, Desktop
     Ok(SessionStore::delete(&cwd, &id).await?)
 }
 
+#[tauri::command]
+async fn start_or_resume_session(
+    state: State<'_, DesktopAppState>,
+    cwd: Option<String>,
+) -> Result<DesktopSessionInfo, DesktopCommandError> {
+    let cwd = cwd_from_option(cwd)?;
+    let options = desktop_options_for_cwd(cwd)?;
+    let agent = DesktopAgent::resume_latest(options).await?;
+    let session = agent.session_info();
+    *state.agent.lock().await = Some(agent);
+    Ok(session)
+}
+
+#[tauri::command]
+async fn send_prompt(
+    state: State<'_, DesktopAppState>,
+    cwd: Option<String>,
+    prompt: String,
+) -> Result<PromptResponse, DesktopCommandError> {
+    let cwd = cwd_from_option(cwd)?;
+    let mut guard = state.agent.lock().await;
+    if guard
+        .as_ref()
+        .is_none_or(|agent| agent.session_info().cwd != cwd)
+    {
+        let options = desktop_options_for_cwd(cwd)?;
+        *guard = Some(DesktopAgent::resume_latest(options).await?);
+    }
+    let agent = guard.as_mut().expect("agent initialized above");
+    let mut events = Vec::new();
+    let reply = agent
+        .send_prompt(&prompt, |event| events.push(event), |_| false)
+        .await?;
+    Ok(PromptResponse {
+        reply,
+        events,
+        session: agent.session_info(),
+    })
+}
+
 fn cwd_from_option(cwd: Option<String>) -> Result<PathBuf, std::io::Error> {
     match cwd {
         Some(cwd) => Ok(PathBuf::from(cwd)),
         None => std::env::current_dir(),
     }
+}
+
+fn desktop_options_for_cwd(cwd: PathBuf) -> anyhow::Result<DesktopOptions> {
+    Ok(DesktopOptions::from_app_config(AppConfig::load_for_cwd(
+        cwd,
+    )?))
 }
 
 fn workspace_file_suggestions(
@@ -172,6 +234,7 @@ fn should_skip_entry(file_name: &str) -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(DesktopAppState::default())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             health,
@@ -179,7 +242,9 @@ pub fn run() {
             list_sessions,
             list_skills,
             list_workspace_files,
-            delete_session
+            delete_session,
+            start_or_resume_session,
+            send_prompt
         ])
         .run(tauri::generate_context!())
         .expect("error while running Sabi Agent desktop application");

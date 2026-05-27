@@ -38,6 +38,18 @@ type CompletionToken = {
   query: string;
 };
 
+type TranscriptItem = {
+  kind: "user" | "assistant" | "event" | "error";
+  title?: string;
+  text: string;
+};
+
+type PromptResponse = {
+  reply: string;
+  events: unknown[];
+  session: DesktopSessionInfo;
+};
+
 const app = document.querySelector<HTMLElement>("#app");
 
 if (!app) {
@@ -63,6 +75,8 @@ const state: {
   activeSuggestions: Suggestion[];
   selectedSuggestion: number;
   contextSession: DesktopSessionInfo | null;
+  transcript: TranscriptItem[];
+  sending: boolean;
 } = {
   workspace: "",
   sessions: [],
@@ -71,6 +85,8 @@ const state: {
   activeSuggestions: [],
   selectedSuggestion: 0,
   contextSession: null,
+  transcript: [],
+  sending: false,
 };
 
 app.innerHTML = `
@@ -106,7 +122,8 @@ app.innerHTML = `
       <section class="agent-card">
         <p class="crumb">Home › Local</p>
         <h1 id="canvas-title">Sabi Agent</h1>
-        <p class="lede">Draft prompts with <code>@file</code> and <code>/skill:name</code> completions. Prompt execution is the next backend slice.</p>
+        <p class="lede">Ask Sabi to inspect and explain the current project. File edits and shell commands wait for the approval UI.</p>
+        <div id="transcript" class="transcript" aria-live="polite"></div>
         <form id="composer" class="composer" aria-label="Agent prompt composer">
           <textarea id="prompt" rows="5" placeholder="Ask Sabi… Use @ for files, / for commands and skills"></textarea>
           <div id="suggestions" class="suggestions" hidden></div>
@@ -116,7 +133,7 @@ app.innerHTML = `
               <span><kbd>/</kbd> commands + skills</span>
               <span><kbd>Tab</kbd> complete</span>
             </div>
-            <button id="send" class="send-button" type="submit" disabled title="Prompt execution is not wired yet">Send</button>
+            <button id="send" class="send-button" type="submit">Send</button>
           </div>
         </form>
       </section>
@@ -138,6 +155,8 @@ const promptInput = document.querySelector<HTMLTextAreaElement>("#prompt");
 const suggestionsEl = document.querySelector<HTMLDivElement>("#suggestions");
 const sessionMenu = document.querySelector<HTMLDivElement>("#session-menu");
 const deleteSessionButton = document.querySelector<HTMLButtonElement>("#delete-session");
+const transcriptEl = document.querySelector<HTMLDivElement>("#transcript");
+const sendButton = document.querySelector<HTMLButtonElement>("#send");
 
 function basename(path: string): string {
   const normalized = path.replace(/[/\\]+$/, "");
@@ -186,6 +205,33 @@ function renderSessions(): void {
       return item;
     }),
   );
+}
+
+function renderTranscript(): void {
+  if (!transcriptEl) return;
+  if (state.transcript.length === 0) {
+    transcriptEl.replaceChildren();
+    return;
+  }
+  transcriptEl.replaceChildren(
+    ...state.transcript.map((item) => {
+      const row = document.createElement("article");
+      row.className = `transcript-item transcript-${item.kind}`;
+      const title = item.title || item.kind;
+      row.innerHTML = `
+        <div class="transcript-title">${escapeHtml(title)}</div>
+        <div class="transcript-text">${escapeHtml(item.text)}</div>
+      `;
+      return row;
+    }),
+  );
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+
+function renderSendState(): void {
+  if (!sendButton || !promptInput) return;
+  sendButton.disabled = state.sending || promptInput.value.trim().length === 0;
+  sendButton.textContent = state.sending ? "Sending" : "Send";
 }
 
 function showSessionMenu(x: number, y: number, session: DesktopSessionInfo): void {
@@ -292,6 +338,23 @@ async function loadSessions(): Promise<void> {
   }
 }
 
+async function startSession(): Promise<void> {
+  if (!state.workspace) return;
+  try {
+    const session = await invoke<DesktopSessionInfo>("start_or_resume_session", { cwd: state.workspace });
+    const existing = state.sessions.findIndex((item) => item.id === session.id);
+    if (existing >= 0) {
+      state.sessions[existing] = session;
+    } else if (session.message_count > 0) {
+      state.sessions.unshift(session);
+    }
+    renderSessions();
+  } catch (error) {
+    state.transcript.push({ kind: "error", title: "Session Error", text: String(error) });
+    renderTranscript();
+  }
+}
+
 async function loadFileSuggestions(query: string): Promise<Suggestion[]> {
   try {
     const files = await invoke<DesktopFileSuggestion[]>("list_workspace_files", {
@@ -382,9 +445,80 @@ function setWorkspace(nextWorkspace: string): void {
   state.workspace = nextWorkspace;
   state.sessions = [];
   state.skills = [];
+  state.transcript = [];
   renderWorkspace();
+  renderTranscript();
   void loadSessions();
   void loadSkills();
+  void startSession();
+}
+
+async function sendPrompt(): Promise<void> {
+  if (!promptInput || state.sending) return;
+  const prompt = promptInput.value.trim();
+  if (!prompt) return;
+
+  state.sending = true;
+  renderSendState();
+  promptInput.value = "";
+  state.activeToken = null;
+  state.activeSuggestions = [];
+  renderSuggestions();
+  state.transcript.push({ kind: "user", title: "You", text: prompt });
+  renderTranscript();
+
+  try {
+    const response = await invoke<PromptResponse>("send_prompt", { cwd: state.workspace || null, prompt });
+    for (const event of response.events) {
+      const item = transcriptItemFromEvent(event);
+      if (item) state.transcript.push(item);
+    }
+    if (response.reply.trim()) {
+      state.transcript.push({ kind: "assistant", title: "Sabi", text: response.reply });
+    }
+    upsertSession(response.session);
+    renderSessions();
+  } catch (error) {
+    state.transcript.push({ kind: "error", title: "Prompt Error", text: String(error) });
+  } finally {
+    state.sending = false;
+    renderSendState();
+    renderTranscript();
+    void loadSessions();
+  }
+}
+
+function upsertSession(session: DesktopSessionInfo): void {
+  const index = state.sessions.findIndex((item) => item.id === session.id);
+  if (index >= 0) {
+    state.sessions[index] = session;
+  } else {
+    state.sessions.unshift(session);
+  }
+}
+
+function transcriptItemFromEvent(event: unknown): TranscriptItem | null {
+  if (!event || typeof event !== "object") return null;
+  const entries = Object.entries(event as Record<string, unknown>);
+  const [kind, payload] = entries[0] || [];
+  if (!kind || !payload || typeof payload !== "object") return null;
+  const data = payload as Record<string, unknown>;
+  switch (kind) {
+    case "AssistantText":
+      return null;
+    case "ToolStarted":
+      return { kind: "event", title: `Tool started: ${String(data.name || "tool")}`, text: JSON.stringify(data.args ?? {}, null, 2) };
+    case "ToolFinished":
+      return { kind: data.is_error ? "error" : "event", title: `Tool finished: ${String(data.name || "tool")}`, text: String(data.output || "") };
+    case "DiffReady":
+      return { kind: "event", title: `Diff: ${String(data.path || "file")}`, text: String(data.patch || data.rendered || "") };
+    case "FileChanged":
+      return { kind: "event", title: "File changed", text: String(data.path || "") };
+    case "Error":
+      return { kind: "error", title: "Error", text: String(data.message || "") };
+    default:
+      return null;
+  }
 }
 
 async function openProject(): Promise<void> {
@@ -413,6 +547,7 @@ openProjectButton?.addEventListener("click", () => {
 });
 
 promptInput?.addEventListener("input", () => {
+  renderSendState();
   void updateCompletions();
 });
 
@@ -421,24 +556,38 @@ promptInput?.addEventListener("click", () => {
 });
 
 promptInput?.addEventListener("keydown", (event) => {
-  if (!state.activeToken || state.activeSuggestions.length === 0) return;
+  const hasSuggestions = state.activeToken && state.activeSuggestions.length > 0;
 
-  if (event.key === "ArrowDown") {
+  if (hasSuggestions) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      state.selectedSuggestion = (state.selectedSuggestion + 1) % state.activeSuggestions.length;
+      renderSuggestions();
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      state.selectedSuggestion = (state.selectedSuggestion - 1 + state.activeSuggestions.length) % state.activeSuggestions.length;
+      renderSuggestions();
+      return;
+    }
+    if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
+      event.preventDefault();
+      acceptSuggestion();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      state.activeToken = null;
+      state.activeSuggestions = [];
+      renderSuggestions();
+      return;
+    }
+  }
+
+  if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
-    state.selectedSuggestion = (state.selectedSuggestion + 1) % state.activeSuggestions.length;
-    renderSuggestions();
-  } else if (event.key === "ArrowUp") {
-    event.preventDefault();
-    state.selectedSuggestion = (state.selectedSuggestion - 1 + state.activeSuggestions.length) % state.activeSuggestions.length;
-    renderSuggestions();
-  } else if (event.key === "Tab" || event.key === "Enter") {
-    event.preventDefault();
-    acceptSuggestion();
-  } else if (event.key === "Escape") {
-    event.preventDefault();
-    state.activeToken = null;
-    state.activeSuggestions = [];
-    renderSuggestions();
+    void sendPrompt();
   }
 });
 
@@ -460,9 +609,12 @@ document.addEventListener("keydown", (event) => {
 
 composer?.addEventListener("submit", (event) => {
   event.preventDefault();
+  void sendPrompt();
 });
 
 await loadWorkspace();
 void loadHealth();
 void loadSessions();
 void loadSkills();
+void startSession();
+renderSendState();

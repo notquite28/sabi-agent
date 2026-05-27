@@ -41,6 +41,10 @@ struct AuthFile {
 
 impl AppConfig {
     pub fn load() -> anyhow::Result<Self> {
+        Self::load_for_cwd(std::env::current_dir()?)
+    }
+
+    pub fn load_for_cwd(cwd: PathBuf) -> anyhow::Result<Self> {
         let api_key = openai_api_key()?;
         let exa_api_key = exa_api_key();
 
@@ -48,7 +52,7 @@ impl AppConfig {
         let user_config = load_user_config();
 
         // Load optional per-project overrides from sabi.toml in the current directory.
-        let project_config = load_project_config(std::env::current_dir()?.as_ref());
+        let project_config = load_project_config(&cwd);
 
         // Resolution order: project config > user config > env var > default.
         let model = project_config
@@ -66,7 +70,7 @@ impl AppConfig {
             .unwrap_or_else(|| "https://api.avemujica.moe/v1".to_string());
 
         Ok(Self {
-            cwd: std::env::current_dir()?,
+            cwd,
             model,
             base_url,
             api_key,

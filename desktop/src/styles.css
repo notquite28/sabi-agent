@@ -247,6 +247,46 @@ h1 {
   color: #cbd5e1;
 }
 
+.transcript {
+  display: grid;
+  gap: 0.65rem;
+  max-height: 34vh;
+  overflow: auto;
+  margin: 0 0 0.9rem;
+  padding-right: 0.2rem;
+}
+
+.transcript-item {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 0.8rem;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 0.7rem 0.8rem;
+}
+
+.transcript-user {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.transcript-error {
+  border-color: rgba(248, 113, 113, 0.24);
+  background: rgba(127, 29, 29, 0.18);
+}
+
+.transcript-title {
+  color: #93c5fd;
+  font-size: 0.72rem;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+
+.transcript-text {
+  color: #dbeafe;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .composer {
   position: relative;
   overflow: visible;
