@@ -20,6 +20,8 @@ The crate currently supports an OpenAI-compatible agent loop with these tools:
 - `ls`
 - `grep`
 - `find`
+- `web_search`
+- `exa_search`
 
 It also supports:
 
@@ -44,6 +46,7 @@ For local development, you can also edit `.env` in the directory where you run t
 OPENAI_API_KEY=...
 RUST_PI_MODEL=gpt-5.5
 RUST_PI_BASE_URL=https://api.avemujica.moe/v1
+EXA_API_KEY=...
 ```
 
 AveMujicaAPI docs:

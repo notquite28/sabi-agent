@@ -38,6 +38,7 @@ sabi-agent/src/
     ls.rs             # Directory listing tool.
     grep.rs           # Ripgrep-backed search tool.
     find.rs           # fd-backed file finder.
+    search.rs         # Exa web search and code search.
 ```
 
 Reusable modules now live behind `lib.rs`, and `main.rs` is a thin CLI frontend. The library API is still early and can be refined before desktop work begins.

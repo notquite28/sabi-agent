@@ -45,11 +45,13 @@ The Rust version should also keep the core agent code reusable for non-terminal 
 
 `grep` and `find` use external `rg` and `fd`. Pi can download missing tools; the Rust version currently reports a clear error if they are not installed.
 
+`web_search` and `exa_search` use the Exa API directly (no MCP proxy). They require an `EXA_API_KEY` environment variable. `web_search` tries `/answer` first for a synthesized response, then falls back to `/search`. `exa_search` enriches queries with code-focused terms and uses the same Exa API.
+
 `write` and `edit` emit diff/file events so frontends can render file changes without scraping text output.
 
 ## Skill Simplification Notes
 
-Skills should follow the Agent Skills convention with `SKILL.md` and frontmatter. The first Rust version only needs:
+Skills should follow the Agent Skills convention with `SKILL.md` and frontmatter. Built-in skills store their prompt content in `src/skills/*.txt` files loaded via `include_str!` for easy editing without recompiling. The first Rust version only needs:
 
 - `name`
 - `description`

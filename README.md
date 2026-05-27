@@ -19,7 +19,7 @@ The Rust agent currently supports:
 
 - OpenAI-compatible chat completions.
 - AveMujicaAPI defaults via environment variables or a working-directory `.env`.
-- Tool calls for `read`, `write`, `edit`, `bash`, `ls`, `grep`, and `find`.
+- Tool calls for `read`, `write`, `edit`, `bash`, `ls`, `grep`, `find`, `web_search`, and `exa_search`.
 - Structured agent events used by the CLI renderer.
 - JSONL session files with `--resume` for the latest non-empty session in the current working directory.
 - Interactive approvals for `write`, `edit`, and `bash`, with session-only `/fiwb` mode to bypass approvals.
@@ -45,6 +45,7 @@ Current local `.env` keys:
 OPENAI_API_KEY=...
 RUST_PI_MODEL=gpt-5.5
 RUST_PI_BASE_URL=https://api.avemujica.moe/v1
+EXA_API_KEY=...
 ```
 
 Do not commit `.env`; it is ignored.

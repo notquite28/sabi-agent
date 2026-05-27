@@ -123,12 +123,14 @@ Why this matters:
 
 ## Milestone 5: Search And Listing Tools
 
-Status: complete for first-pass implementations. `ls` uses Rust filesystem APIs, `grep` shells out to `rg`, and `find` shells out to `fd`. Output truncation exists for `grep` and `find`.
+Status: complete for first-pass implementations. `ls` uses Rust filesystem APIs, `grep` shells out to `rg`, `find` shells out to `fd`, and `web_search`/`exa_search` use the Exa API directly. Output truncation exists for `grep` and `find`.
 
 Deliverables:
 - Add `ls` using Rust filesystem APIs.
 - Add `grep` by shelling out to `rg`.
 - Add `find` by shelling out to `fd`, with a fallback considered later.
+- Add `web_search` for general web search via Exa API (requires `EXA_API_KEY`).
+- Add `exa_search` for code/docs search via Exa API.
 - Truncate large outputs with clear notices.
 
 ## Milestone 6: Slash Commands And Skills

@@ -30,12 +30,13 @@
 
 ## Current Capabilities
 
-- Built-in tools are `read`, `write`, `edit`, `bash`, `ls`, `grep`, and `find`.
+- Built-in tools are `read`, `write`, `edit`, `bash`, `ls`, `grep`, `find`, `web_search`, and `exa_search`.
+- `web_search` and `exa_search` require `EXA_API_KEY` and use the Exa API directly (no MCP proxy).
 - `grep` shells out to `rg`; `find` shells out to `fd`, so missing binaries are runtime tool errors.
 - Interactive mode requires approval for `write`, `edit`, and `bash`; `/fiwb` or `/yolo` bypasses approvals for the current process only.
 - One-shot prompt mode currently allows tools without interactive approval.
 - JSONL sessions are append-only; `--resume` only loads sessions whose stored header `cwd` matches the current working directory.
-- Built-in skill: `/skill:init` creates or updates compact repository `AGENTS.md` instructions.
+- Built-in skills: `/skill:init` creates or updates repository `AGENTS.md`; `/skill:review` reviews code changes.
 - Additional skills load from `.sabi/skills/` and `~/.sabi/skills/`; skill summaries are included in ordinary prompts.
 
 ## Architecture Constraints
