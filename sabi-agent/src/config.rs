@@ -204,6 +204,7 @@ pub async fn write_auth_file(openai_key: &str, exa_key: Option<&str>) -> anyhow:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::sync::{Mutex, MutexGuard};
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -252,6 +253,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn api_keys_load_from_sabi_auth_before_environment() {
         let _guard = EnvGuard::new();
         let home = temp_home("auth-first");
@@ -269,6 +271,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn working_directory_dotenv_is_not_loaded() {
         let _guard = EnvGuard::new();
         let home = temp_home("no-dotenv");

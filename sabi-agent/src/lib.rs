@@ -11,6 +11,7 @@
 pub mod agent;
 pub mod app;
 pub mod config;
+pub mod desktop;
 pub mod diff;
 pub mod events;
 pub mod llm;

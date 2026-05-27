@@ -8,9 +8,10 @@
 //! - Starts with events needed by the current CLI renderer.
 //! - No streaming deltas, approvals, custom UI payloads, or session events yet.
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentEvent {
     AssistantText {
         text: String,

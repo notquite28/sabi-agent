@@ -29,6 +29,7 @@ sabi-agent/src/
   skills.rs           # Skill discovery and invocation formatting.
   slash.rs            # Slash command parsing and handling.
   session.rs          # JSONL transcript persistence.
+  desktop.rs          # Desktop-facing in-process API over sessions, prompts, approvals, and events.
   tools/
     mod.rs            # Tool registry and shared tool types.
     read.rs           # Read tool.
@@ -41,7 +42,7 @@ sabi-agent/src/
     search.rs         # Exa web search and code search.
 ```
 
-Reusable modules now live behind `lib.rs`, and `main.rs` is a thin CLI frontend. The library API is still early and can be refined before desktop work begins.
+Reusable modules now live behind `lib.rs`, and `main.rs` is a thin CLI frontend. `desktop.rs` provides the first desktop-facing boundary so a future Tauri app can drive sessions and prompt turns without parsing terminal output.
 
 ## Core Flow
 
@@ -76,6 +77,8 @@ pub enum AgentEvent {
 ```
 
 The CLI can render these events as text. A desktop app can render them as chat bubbles, tool cards, diff panels, notifications, and approval prompts.
+
+`desktop.rs` exposes `DesktopAgent` as the frontend handle. It can start or resume a session, send a prompt with event and approval callbacks, clear or create sessions, reload the previous session, refresh skills, and return serializable state for UI headers/lists.
 
 ## Desktop Architecture Target
 
