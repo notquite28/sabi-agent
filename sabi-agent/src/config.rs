@@ -10,7 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
@@ -22,10 +22,10 @@ pub struct AppConfig {
 
 /// User-level presets stored in `~/.sabi/config.toml`.
 /// Only non-sensitive fields; API keys stay in env/.env only.
-#[derive(Debug, Default, Deserialize)]
-struct ConfigFile {
-    model: Option<String>,
-    base_url: Option<String>,
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct ConfigFile {
+    pub model: Option<String>,
+    pub base_url: Option<String>,
 }
 
 impl AppConfig {
@@ -85,7 +85,7 @@ fn load_user_config() -> Option<ConfigFile> {
         .ok()
 }
 
-fn user_config_path() -> Option<PathBuf> {
+pub fn user_config_path() -> Option<PathBuf> {
     let home = std::env::var_os("HOME")?;
     Some(PathBuf::from(home).join(".sabi").join("config.toml"))
 }

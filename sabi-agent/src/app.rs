@@ -29,9 +29,7 @@ pub async fn run(
     should_resume: bool,
 ) -> Result<()> {
     // Run first-launch onboarding if the user has no config yet.
-    if !crate::onboarding::run_if_needed().await? {
-        return Ok(());
-    }
+    crate::onboarding::run_if_needed().await?;
 
     let config = AppConfig::load()?;
     let cwd = config.cwd.clone();

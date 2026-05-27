@@ -4,25 +4,24 @@
 //! with default presets, and explaining where API keys belong.
 
 use std::io::Write;
-use std::path::PathBuf;
 
 use anyhow::Result;
 
+use crate::config::{user_config_path, ConfigFile};
+
 /// Runs onboarding if the user has no ~/.sabi/config.toml yet.
-/// Returns true if onboarding ran (or was skipped), false if the user
-/// wants to quit without configuring anything.
-pub async fn run_if_needed() -> Result<bool> {
+pub async fn run_if_needed() -> Result<()> {
     let config_path = match user_config_path() {
         Some(path) => path,
         None => {
             // If we cannot resolve the home directory, skip onboarding silently.
-            return Ok(true);
+            return Ok(());
         }
     };
 
     if config_path.exists() {
         // User has already been onboarded.
-        return Ok(true);
+        return Ok(());
     }
 
     println!();
@@ -51,85 +50,64 @@ pub async fn run_if_needed() -> Result<bool> {
     let mut answer = String::new();
     std::io::stdin().read_line(&mut answer)?;
 
-    if answer.trim().eq_ignore_ascii_case("n") {
+    let (model, base_url) = if answer.trim().eq_ignore_ascii_case("n") {
         println!("\nSkipping setup. You can run this again later by deleting ~/.sabi/config.toml");
         println!("or by editing that file directly.\n");
-        // Still create an empty config so we don't ask again.
-        create_empty_config(&config_path).await?;
-        return Ok(true);
-    }
+        (None, None)
+    } else {
+        println!("\n┌─ Default Presets ──────────────────────────────────────────┐");
+        println!("│ These settings are saved to ~/.sabi/config.toml            │");
+        println!("│ and can be overridden per-project with sabi.toml           │");
+        println!("└────────────────────────────────────────────────────────────┘\n");
 
-    // Collect presets
-    println!("\n┌─ Default Presets ──────────────────────────────────────────┐");
-    println!("│ These settings are saved to ~/.sabi/config.toml            │");
-    println!("│ and can be overridden per-project with sabi.toml           │");
-    println!("└────────────────────────────────────────────────────────────┘\n");
+        let model = ask_with_default("Default model", "gpt-5.5");
+        let base_url = ask_with_default("Default base URL", "https://api.avemujica.moe/v1");
+        (Some(model), Some(base_url))
+    };
 
-    let model = ask_with_default(
-        "Default model",
-        "gpt-5.5",
-    )?;
+    // Remember whether the user configured anything so we can show the success banner.
+    let configured = model.is_some();
 
-    let base_url = ask_with_default(
-        "Default base URL",
-        "https://api.avemujica.moe/v1",
-    )?;
-
-    // Write config file
-    let config_dir = config_path.parent().unwrap();
-    tokio::fs::create_dir_all(config_dir).await?;
-
+    // Build config struct and serialize to TOML so special characters are escaped safely.
+    let config = ConfigFile { model, base_url };
     let config_content = format!(
         "# Sabi Agent user-level presets\n\
          # These can be overridden per-project with sabi.toml\n\
-         \n\
-         model = \"{}\"\n\
-         base_url = \"{}\"\n",
-        model, base_url
+         \n{}",
+        toml::to_string(&config)?
     );
 
-    tokio::fs::write(&config_path, config_content).await?;
-
-    println!();
-    println!("✓ Config saved to {}", config_path.display());
-    println!();
-    println!("Next steps:");
-    println!("  1. Set your API keys: export OPENAI_API_KEY=...");
-    println!("  2. Run: cargo run -- --check-provider");
-    println!("  3. Start chatting: cargo run");
-    println!();
-
-    Ok(true)
-}
-
-fn user_config_path() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME")?;
-    Some(PathBuf::from(home).join(".sabi").join("config.toml"))
-}
-
-async fn create_empty_config(path: &std::path::Path) -> Result<()> {
-    if let Some(parent) = path.parent() {
+    // Ensure parent directory exists before writing.
+    if let Some(parent) = config_path.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
-    let content = "# Sabi Agent user-level presets\n\
-                   # Uncomment and edit these to set defaults:\n\
-                   # model = \"gpt-5.5\"\n\
-                   # base_url = \"https://api.avemujica.moe/v1\"\n";
-    tokio::fs::write(path, content).await?;
+    tokio::fs::write(&config_path, config_content).await?;
+
+    if configured {
+        println!();
+        println!("✓ Config saved to {}", config_path.display());
+        println!();
+        println!("Next steps:");
+        println!("  1. Set your API keys: export OPENAI_API_KEY=...");
+        println!("  2. Run: cargo run -- --check-provider");
+        println!("  3. Start chatting: cargo run");
+        println!();
+    }
+
     Ok(())
 }
 
-fn ask_with_default(prompt: &str, default: &str) -> Result<String> {
+fn ask_with_default(prompt: &str, default: &str) -> String {
     print!("{} [{}]: ", prompt, default);
-    std::io::stdout().flush()?;
+    let _ = std::io::stdout().flush();
 
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
+    let _ = std::io::stdin().read_line(&mut input);
 
     let trimmed = input.trim();
     if trimmed.is_empty() {
-        Ok(default.to_string())
+        default.to_string()
     } else {
-        Ok(trimmed.to_string())
+        trimmed.to_string()
     }
 }
