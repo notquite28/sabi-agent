@@ -10,6 +10,7 @@ This repository is a learning project. The goal is to understand and rebuild the
 - `pi/` - original TypeScript Pi agent reference, tracked as a submodule.
 - `ROADMAP.md` - implementation milestones and scope decisions.
 - `docs/ARCHITECTURE.md` - architecture notes, including the future desktop app direction.
+- `docs/USER_MANUAL.md` - CLI user manual covering setup, commands, sessions, approvals, tools, and skills.
 - `docs/PORTING_NOTES.md` - notes on what is intentionally simplified from Pi.
 - `AGENTS.md` - instructions for future OpenCode sessions.
 
@@ -63,7 +64,9 @@ Do not commit `sabi.toml` or provider credentials.
 
 ## Commands
 
-Run from `sabi-agent/`:
+Run from `sabi-agent/`.
+
+For detailed usage, see the [CLI user manual](docs/USER_MANUAL.md).
 
 ```bash
 cargo fmt

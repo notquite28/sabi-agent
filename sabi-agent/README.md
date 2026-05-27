@@ -5,6 +5,7 @@ This crate is a small Rust coding-agent harness.
 The original TypeScript implementation remains in `../pi/` for reference. This crate does not modify or depend on that code at runtime.
 
 See:
+- `../docs/USER_MANUAL.md`
 - `../ROADMAP.md`
 - `../docs/ARCHITECTURE.md`
 - `../docs/PORTING_NOTES.md`

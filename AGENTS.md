@@ -8,7 +8,7 @@
 
 ## Read First
 
-- For current state and scope, read `README.md`, `sabi-agent/README.md`, and `ROADMAP.md`.
+- For current state and scope, read `README.md`, `sabi-agent/README.md`, and `ROADMAP.md`; `docs/USER_MANUAL.md` is the detailed CLI behavior reference.
 - For architecture changes, also read `docs/ARCHITECTURE.md` and `docs/PORTING_NOTES.md`.
 - Every Rust source file should keep its top module doc comment with `Ported from:` and `Simplifications:` notes.
 
@@ -16,10 +16,13 @@
 
 - Format: `cargo fmt` from `sabi-agent/`.
 - Compile check: `cargo check` from `sabi-agent/`.
+- Unit tests: `cargo test` from `sabi-agent/`; current focused tests live in `src/diff.rs` and `src/config.rs`.
+- Single focused test: `cargo test <test_name>` from `sabi-agent/`.
 - CLI help: `cargo run -- --help`.
 - Interactive CLI: `cargo run`.
 - Resume latest non-empty session for the current CWD: `cargo run -- --resume`.
 - Harmless one-shot smoke test: `cargo run -- "Say exactly: ok"`.
+- Example smoke programs: `cargo run --example fibonacci` or `cargo run --example binary_search`.
 - Provider smoke test: `cargo run -- --check-provider`; this makes real API calls and requires `openai_api_key` in `~/.sabi/auth.toml` or `OPENAI_API_KEY` in the environment.
 
 ## Provider And Config
@@ -38,6 +41,7 @@
 - Interactive mode requires approval for `write`, `edit`, and `bash`; `/fiwb` or `/yolo` bypasses approvals for the current process only.
 - One-shot prompt mode currently allows tools without interactive approval.
 - JSONL sessions are append-only; `--resume` only loads sessions whose stored header `cwd` matches the current working directory.
+- Slash commands include `/help`, `/clear`, `/new`, `/session`, `/reload`, `/skill:name`, `/fiwb`, `/yolo`, and `/quit`.
 - Built-in skills: `/skill:init` creates or updates repository `AGENTS.md`; `/skill:review` reviews code changes.
 - Additional skills load from `.sabi/skills/` and `~/.sabi/skills/`; skill summaries are included in ordinary prompts.
 
