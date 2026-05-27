@@ -110,15 +110,16 @@ The desktop app should not call the CLI binary and parse stdout. It should call 
 
 ## Tool Approval In Desktop Mode
 
-The CLI currently executes tools directly. A desktop app should eventually support approval before risky operations.
+The agent engine builds a `ToolApprovalRequest` before executing each tool. The request contains the tool call id, name, arguments, risk level, whether approval is required, and a concise summary for UI display.
 
-Suggested policy:
+Current policy:
 
-- `read`, `ls`, `grep`, `find`: allow by default.
-- `write`, `edit`: show diff or target path and require approval.
-- `bash`: require approval by default, with a clear command preview.
+- `read`, `ls`, `grep`, `find`: read-only, allow by default.
+- `web_search`, `exa_search`: external network, allow by default for now.
+- `write`, `edit`: file mutation, require approval.
+- `bash`: shell execution, require approval with a clear command preview.
 
-This can be implemented as a pre-tool hook in the agent engine that asks the frontend for a decision.
+The CLI answers these requests with a terminal prompt unless `/fiwb` or `/yolo` is enabled. A desktop frontend should render the same typed request as an approval card and return the user's decision.
 
 ## Tool Design
 

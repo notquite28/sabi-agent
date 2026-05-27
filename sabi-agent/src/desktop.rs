@@ -12,10 +12,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use time::OffsetDateTime;
 
 use crate::agent::run_agent_turn_with_events;
+use crate::approval::ToolApprovalRequest;
 use crate::config::AppConfig;
 use crate::events::AgentEvent;
 use crate::llm::ModelConfig;
@@ -170,7 +170,7 @@ impl DesktopAgent {
         &mut self,
         prompt: &str,
         emit: impl FnMut(AgentEvent),
-        approve: impl FnMut(&str, &Value) -> bool,
+        approve: impl FnMut(&ToolApprovalRequest) -> bool,
     ) -> Result<String> {
         let reply = run_agent_turn_with_events(
             &self.model,

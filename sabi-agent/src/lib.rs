@@ -10,6 +10,7 @@
 
 pub mod agent;
 pub mod app;
+pub mod approval;
 pub mod config;
 pub mod desktop;
 pub mod diff;

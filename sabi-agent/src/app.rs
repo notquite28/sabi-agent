@@ -10,9 +10,9 @@
 
 use anyhow::Result;
 use rustyline::DefaultEditor;
-use serde_json::Value;
 
 use crate::agent::run_agent_turn_with_events;
+use crate::approval::ToolApprovalRequest;
 use crate::config::AppConfig;
 use crate::events::AgentEvent;
 use crate::llm::{check_provider, ModelConfig};
@@ -93,7 +93,7 @@ pub async fn run(
             &prompt,
             Some(&session),
             render_event,
-            |_, _| true,
+            |_| true,
         )
         .await?;
         return Ok(());
@@ -146,7 +146,7 @@ pub async fn run(
             trimmed,
             Some(&session),
             render_event,
-            |name, args| approve_tool(name, args, fiwb_mode),
+            |approval| approve_tool(approval, fiwb_mode),
         )
         .await?;
     }
@@ -296,7 +296,7 @@ async fn handle_command(
                 &prompt,
                 Some(session),
                 render_event,
-                |tool_name, args| approve_tool(tool_name, args, *fiwb_mode),
+                |approval| approve_tool(approval, *fiwb_mode),
             )
             .await?;
             Ok(false)
@@ -308,16 +308,12 @@ async fn handle_command(
     }
 }
 
-fn approve_tool(name: &str, args: &Value, fiwb_mode: bool) -> bool {
-    if !is_risky_tool(name) || fiwb_mode {
+fn approve_tool(approval: &ToolApprovalRequest, fiwb_mode: bool) -> bool {
+    if !approval.approval_required || fiwb_mode {
         return true;
     }
 
-    println!(
-        "approval required: {} {}",
-        name,
-        approval_summary(name, args)
-    );
+    println!("approval required: {} {}", approval.name, approval.summary);
     println!("Approve? [y/N]");
 
     let mut answer = String::new();
@@ -325,24 +321,4 @@ fn approve_tool(name: &str, args: &Value, fiwb_mode: bool) -> bool {
         return false;
     }
     matches!(answer.trim(), "y" | "Y" | "yes" | "YES")
-}
-
-fn is_risky_tool(name: &str) -> bool {
-    matches!(name, "write" | "edit" | "bash")
-}
-
-fn approval_summary(name: &str, args: &Value) -> String {
-    match name {
-        "bash" => args
-            .get("command")
-            .and_then(Value::as_str)
-            .map(|command| format!("command={command:?}"))
-            .unwrap_or_else(|| args.to_string()),
-        "write" | "edit" => args
-            .get("path")
-            .and_then(Value::as_str)
-            .map(|path| format!("path={path:?}"))
-            .unwrap_or_else(|| args.to_string()),
-        _ => args.to_string(),
-    }
 }

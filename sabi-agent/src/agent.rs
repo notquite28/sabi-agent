@@ -14,6 +14,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use serde_json::Value;
 
+use crate::approval::ToolApprovalRequest;
 use crate::events::AgentEvent;
 use crate::llm::{complete_chat_message, ModelConfig};
 use crate::messages::Message;
@@ -33,7 +34,7 @@ pub async fn run_agent_turn(
     cwd: &Path,
     prompt: &str,
 ) -> Result<String> {
-    run_agent_turn_with_events(model, messages, cwd, prompt, None, |_| {}, |_, _| true).await
+    run_agent_turn_with_events(model, messages, cwd, prompt, None, |_| {}, |_| true).await
 }
 
 pub async fn run_agent_turn_with_events(
@@ -43,7 +44,7 @@ pub async fn run_agent_turn_with_events(
     prompt: &str,
     session: Option<&SessionStore>,
     mut emit: impl FnMut(AgentEvent),
-    mut approve: impl FnMut(&str, &Value) -> bool,
+    mut approve: impl FnMut(&ToolApprovalRequest) -> bool,
 ) -> Result<String> {
     let user_message = Message::user(prompt);
     persist_message(session, &user_message).await?;
@@ -69,12 +70,17 @@ pub async fn run_agent_turn_with_events(
         for tool_call in tool_calls {
             let args: Value = serde_json::from_str(&tool_call.arguments)
                 .with_context(|| format!("invalid JSON arguments for {}", tool_call.name))?;
+            let approval = ToolApprovalRequest::new(
+                tool_call.id.clone(),
+                tool_call.name.clone(),
+                args.clone(),
+            );
             emit(AgentEvent::ToolStarted {
                 id: tool_call.id.clone(),
                 name: tool_call.name.clone(),
                 args: args.clone(),
             });
-            let output = if approve(&tool_call.name, &args) {
+            let output = if !approval.approval_required || approve(&approval) {
                 run_tool(&tool_call.name, args, cwd).await
             } else {
                 ToolOutput {
