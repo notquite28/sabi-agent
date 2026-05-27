@@ -82,12 +82,12 @@ The CLI can render these events as text. A desktop app can render them as chat b
 
 ## Desktop Architecture Target
 
-The future desktop app should be a separate frontend over the same Rust agent engine.
+The desktop app is a separate Tauri frontend over the same Rust agent engine.
 
 Recommended stack:
 
 - Tauri for desktop packaging and Rust integration.
-- React or Svelte for the UI.
+- Vanilla TypeScript/Vite for the initial shell; React or Svelte can be introduced when UI complexity justifies it.
 - Monaco Editor for Cursor-style file viewing and editing.
 - `xterm.js` for an optional terminal panel.
 - Rust `notify` crate for workspace file watching.
@@ -98,12 +98,10 @@ Target layout:
 ```text
 desktop/
   src-tauri/          # Tauri shell that calls sabi-agent library code.
-  src/                # Web UI.
-    ChatPanel.tsx
-    FileTree.tsx
-    EditorPanel.tsx
-    DiffViewer.tsx
-    ToolCard.tsx
+  src/                # Vite web UI.
+    main.ts           # Minimal session-list frontend.
+    styles.css        # Shell styling.
+    # Future: ChatPanel, FileTree, EditorPanel, DiffViewer, ToolCard.
 ```
 
 The desktop app should not call the CLI binary and parse stdout. It should call Rust library functions or subscribe to typed event streams.

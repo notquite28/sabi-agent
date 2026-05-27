@@ -7,6 +7,7 @@ This repository is a learning project. The goal is to understand and rebuild the
 ## Layout
 
 - `sabi-agent/` - active Rust implementation.
+- `desktop/` - early Tauri desktop shell over the Rust agent library.
 - `pi/` - original TypeScript Pi agent reference, tracked as a submodule.
 - `ROADMAP.md` - implementation milestones and scope decisions.
 - `docs/ARCHITECTURE.md` - architecture notes, including the future desktop app direction.
@@ -28,13 +29,14 @@ The Rust agent currently supports:
 - Readline command history persisted across restarts.
 - First-launch onboarding that guides you through preset configuration.
 - Unit tests for diff logic.
+- Early Tauri desktop shell with backend health and session-list commands.
 - Generated Fibonacci examples used to verify file tools.
 
 Planned next:
 
-- Session selection and richer resume UX.
+- Desktop prompt execution and event streaming.
 - Richer approval UX for risky operations.
-- A fuller desktop-facing API for a future Tauri/Cursor-style frontend.
+- Chat panel, workspace file tree, and diff viewer in the desktop shell.
 
 ## Setup
 
