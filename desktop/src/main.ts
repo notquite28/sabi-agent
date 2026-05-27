@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./styles.css";
 
@@ -39,15 +40,32 @@ type CompletionToken = {
 };
 
 type TranscriptItem = {
-  kind: "user" | "assistant" | "event" | "error";
+  kind: "user" | "assistant" | "event" | "error" | "approval";
   title?: string;
   text: string;
+  detail?: string;
+  approval?: ToolApprovalRequest;
+  approvalState?: "pending" | "approved" | "denied";
+};
+
+type ToolApprovalRequest = {
+  id: string;
+  name: string;
+  args: unknown;
+  risk_level: string;
+  approval_required: boolean;
+  summary: string;
 };
 
 type PromptResponse = {
   reply: string;
   events: unknown[];
   session: DesktopSessionInfo;
+};
+
+type SessionTranscriptResponse = {
+  session: DesktopSessionInfo;
+  messages: Array<{ role: "user" | "assistant" | "tool"; content: string }>;
 };
 
 const app = document.querySelector<HTMLElement>("#app");
@@ -75,6 +93,7 @@ const state: {
   activeSuggestions: Suggestion[];
   selectedSuggestion: number;
   contextSession: DesktopSessionInfo | null;
+  activeSessionId: string | null;
   transcript: TranscriptItem[];
   sending: boolean;
 } = {
@@ -85,6 +104,7 @@ const state: {
   activeSuggestions: [],
   selectedSuggestion: 0,
   contextSession: null,
+  activeSessionId: null,
   transcript: [],
   sending: false,
 };
@@ -107,25 +127,34 @@ app.innerHTML = `
             <div id="workspace-name" class="workspace-name">Loading…</div>
             <div id="workspace-path" class="workspace-path"></div>
           </div>
-          <button id="refresh" class="icon-button" type="button" title="Refresh workspace" aria-label="Refresh workspace">↻</button>
+          <button id="refresh" class="icon-button" type="button" title="Refresh workspace" aria-label="Refresh workspace">⟳</button>
         </div>
         <button id="open-project" class="secondary-button full-width" type="button">Open Project</button>
       </section>
 
       <section class="sidebar-section sessions-block" aria-labelledby="sessions-heading">
-        <p id="sessions-heading" class="section-label">Sessions</p>
+        <div class="section-heading-row">
+          <p id="sessions-heading" class="section-label">Sessions</p>
+          <button id="new-session" class="tiny-icon-button" type="button" title="New session" aria-label="New session">+</button>
+        </div>
         <ul id="sessions" class="sessions"></ul>
       </section>
     </aside>
 
     <main class="agent-canvas" aria-labelledby="canvas-title">
       <section class="agent-card">
-        <p class="crumb">Home › Local</p>
-        <h1 id="canvas-title">Sabi Agent</h1>
-        <p class="lede">Ask Sabi to inspect and explain the current project. File edits and shell commands wait for the approval UI.</p>
+        <header class="agent-header">
+          <p class="crumb">Home › Local</p>
+          <h1 id="canvas-title">Sabi Agent</h1>
+          <p class="lede">Inspect and explain the current project. Edits and shell commands wait for approval UI.</p>
+        </header>
         <div id="transcript" class="transcript" aria-live="polite"></div>
         <form id="composer" class="composer" aria-label="Agent prompt composer">
-          <textarea id="prompt" rows="5" placeholder="Ask Sabi… Use @ for files, / for commands and skills"></textarea>
+          <div class="composer-row">
+            <button class="attach-button" type="button" aria-label="Add context">+</button>
+            <textarea id="prompt" rows="1" placeholder="Ask Sabi… Use @ for files, / for commands and skills"></textarea>
+            <button id="send" class="send-button" type="submit">Send</button>
+          </div>
           <div id="suggestions" class="suggestions" hidden></div>
           <div class="composer-footer">
             <div class="composer-hints">
@@ -133,7 +162,6 @@ app.innerHTML = `
               <span><kbd>/</kbd> commands + skills</span>
               <span><kbd>Tab</kbd> complete</span>
             </div>
-            <button id="send" class="send-button" type="submit">Send</button>
           </div>
         </form>
       </section>
@@ -150,6 +178,7 @@ const refreshButton = document.querySelector<HTMLButtonElement>("#refresh");
 const workspaceName = document.querySelector<HTMLDivElement>("#workspace-name");
 const workspacePath = document.querySelector<HTMLDivElement>("#workspace-path");
 const openProjectButton = document.querySelector<HTMLButtonElement>("#open-project");
+const newSessionButton = document.querySelector<HTMLButtonElement>("#new-session");
 const composer = document.querySelector<HTMLFormElement>("#composer");
 const promptInput = document.querySelector<HTMLTextAreaElement>("#prompt");
 const suggestionsEl = document.querySelector<HTMLDivElement>("#suggestions");
@@ -192,12 +221,16 @@ function renderSessions(): void {
     ...state.sessions.map((session) => {
       const item = document.createElement("li");
       item.className = "session";
+      item.dataset.active = String(session.id === state.activeSessionId);
       item.innerHTML = `
         <button type="button" title="${escapeHtml(session.path)}">
           <span class="session-title">${escapeHtml(sessionTitle(session))}</span>
           <small>${session.message_count} messages · ${escapeHtml(session.id.slice(0, 8))}</small>
         </button>
       `;
+      item.querySelector("button")?.addEventListener("click", () => {
+        void loadSession(session.id);
+      });
       item.addEventListener("contextmenu", (event) => {
         event.preventDefault();
         showSessionMenu(event.clientX, event.clientY, session);
@@ -209,6 +242,7 @@ function renderSessions(): void {
 
 function renderTranscript(): void {
   if (!transcriptEl) return;
+  app?.classList.toggle("has-transcript", state.transcript.length > 0);
   if (state.transcript.length === 0) {
     transcriptEl.replaceChildren();
     return;
@@ -218,14 +252,69 @@ function renderTranscript(): void {
       const row = document.createElement("article");
       row.className = `transcript-item transcript-${item.kind}`;
       const title = item.title || item.kind;
-      row.innerHTML = `
-        <div class="transcript-title">${escapeHtml(title)}</div>
-        <div class="transcript-text">${escapeHtml(item.text)}</div>
-      `;
+      if (item.kind === "approval") {
+        row.innerHTML = `<div class="approval-line"><span class="transcript-title">${escapeHtml(title)}</span></div>`;
+      } else {
+        row.innerHTML = `<div class="transcript-title">${escapeHtml(title)}</div>`;
+      }
+      const text = document.createElement("div");
+      text.className = "transcript-text";
+      text.textContent = item.text;
+      const approvalLine = row.querySelector(".approval-line");
+      if (approvalLine) {
+        approvalLine.append(text);
+      } else {
+        row.append(text);
+      }
+      if (item.detail) {
+        const details = document.createElement("details");
+        details.className = "transcript-details";
+        details.innerHTML = `<summary>Details</summary><pre>${escapeHtml(item.detail)}</pre>`;
+        row.append(details);
+      }
+      if (item.kind === "approval" && item.approval) {
+        const actions = document.createElement("div");
+        actions.className = "approval-actions";
+        const approve = document.createElement("button");
+        approve.type = "button";
+        approve.textContent = "Approve";
+        approve.disabled = item.approvalState !== "pending";
+        approve.addEventListener("click", () => answerApproval(item.approval!.id, true));
+        const deny = document.createElement("button");
+        deny.type = "button";
+        deny.textContent = "Deny";
+        deny.disabled = item.approvalState !== "pending";
+        deny.dataset.kind = "danger";
+        deny.addEventListener("click", () => answerApproval(item.approval!.id, false));
+        actions.replaceChildren(approve, deny);
+        row.querySelector(".approval-line")?.append(actions);
+      }
       return row;
     }),
   );
   transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+
+async function answerApproval(id: string, approved: boolean): Promise<void> {
+  const item = state.transcript.find((entry) => entry.approval?.id === id);
+  if (item) {
+    item.approvalState = approved ? "approved" : "denied";
+    item.title = approved ? "Approved" : "Denied";
+    renderTranscript();
+  }
+  await invoke("answer_approval", { id, approved });
+}
+
+function showApproval(approval: ToolApprovalRequest): void {
+  state.transcript.push({
+    kind: "approval",
+    title: `Approval required: ${approval.name}`,
+    text: `${approval.risk_level} · ${approval.summary}`,
+    detail: JSON.stringify(approval.args, null, 2),
+    approval,
+    approvalState: "pending",
+  });
+  renderTranscript();
 }
 
 function renderSendState(): void {
@@ -342,12 +431,46 @@ async function startSession(): Promise<void> {
   if (!state.workspace) return;
   try {
     const session = await invoke<DesktopSessionInfo>("start_or_resume_session", { cwd: state.workspace });
+    state.activeSessionId = session.id;
     const existing = state.sessions.findIndex((item) => item.id === session.id);
     if (existing >= 0) {
       state.sessions[existing] = session;
     } else if (session.message_count > 0) {
       state.sessions.unshift(session);
     }
+    renderSessions();
+  } catch (error) {
+    state.transcript.push({ kind: "error", title: "Session Error", text: String(error) });
+    renderTranscript();
+  }
+}
+
+async function loadSession(id: string): Promise<void> {
+  try {
+    const response = await invoke<SessionTranscriptResponse | null>("resume_session", { cwd: state.workspace || null, id });
+    if (!response) return;
+    state.activeSessionId = response.session.id;
+    upsertSession(response.session);
+    state.transcript = response.messages.map((message) => ({
+      kind: message.role === "tool" ? "event" : message.role,
+      title: message.role === "user" ? "You" : message.role === "assistant" ? "Sabi" : "Tool",
+      text: message.content,
+    }));
+    renderSessions();
+    renderTranscript();
+  } catch (error) {
+    state.transcript.push({ kind: "error", title: "Session Error", text: String(error) });
+    renderTranscript();
+  }
+}
+
+async function startNewSession(): Promise<void> {
+  if (!state.workspace) return;
+  try {
+    const session = await invoke<DesktopSessionInfo>("start_new_session", { cwd: state.workspace });
+    state.activeSessionId = session.id;
+    state.transcript = [];
+    renderTranscript();
     renderSessions();
   } catch (error) {
     state.transcript.push({ kind: "error", title: "Session Error", text: String(error) });
@@ -445,6 +568,7 @@ function setWorkspace(nextWorkspace: string): void {
   state.workspace = nextWorkspace;
   state.sessions = [];
   state.skills = [];
+  state.activeSessionId = null;
   state.transcript = [];
   renderWorkspace();
   renderTranscript();
@@ -477,6 +601,7 @@ async function sendPrompt(): Promise<void> {
       state.transcript.push({ kind: "assistant", title: "Sabi", text: response.reply });
     }
     upsertSession(response.session);
+    state.activeSessionId = response.session.id;
     renderSessions();
   } catch (error) {
     state.transcript.push({ kind: "error", title: "Prompt Error", text: String(error) });
@@ -507,11 +632,16 @@ function transcriptItemFromEvent(event: unknown): TranscriptItem | null {
     case "AssistantText":
       return null;
     case "ToolStarted":
-      return { kind: "event", title: `Tool started: ${String(data.name || "tool")}`, text: JSON.stringify(data.args ?? {}, null, 2) };
+      return { kind: "event", title: `Tool: ${String(data.name || "tool")}`, text: "Started", detail: JSON.stringify(data.args ?? {}, null, 2) };
     case "ToolFinished":
-      return { kind: data.is_error ? "error" : "event", title: `Tool finished: ${String(data.name || "tool")}`, text: String(data.output || "") };
+      return {
+        kind: data.is_error ? "error" : "event",
+        title: `Tool: ${String(data.name || "tool")}`,
+        text: data.is_error ? "Failed" : "Finished",
+        detail: String(data.output || ""),
+      };
     case "DiffReady":
-      return { kind: "event", title: `Diff: ${String(data.path || "file")}`, text: String(data.patch || data.rendered || "") };
+      return { kind: "event", title: `Diff: ${String(data.path || "file")}`, text: "Ready", detail: String(data.patch || data.rendered || "") };
     case "FileChanged":
       return { kind: "event", title: "File changed", text: String(data.path || "") };
     case "Error":
@@ -544,6 +674,10 @@ refreshButton?.addEventListener("click", () => {
 
 openProjectButton?.addEventListener("click", () => {
   void openProject();
+});
+
+newSessionButton?.addEventListener("click", () => {
+  void startNewSession();
 });
 
 promptInput?.addEventListener("input", () => {
@@ -613,6 +747,9 @@ composer?.addEventListener("submit", (event) => {
 });
 
 await loadWorkspace();
+void listen<ToolApprovalRequest>("tool-approval-requested", (event) => {
+  showApproval(event.payload);
+});
 void loadHealth();
 void loadSessions();
 void loadSkills();

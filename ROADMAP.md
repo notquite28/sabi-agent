@@ -175,13 +175,13 @@ Deliverables:
 
 ## Milestone 9: Desktop App Foundation
 
-Status: partially complete. The `desktop/` Tauri shell exists with native project selection, backend health, session listing, session title display, right-click session deletion, skill/file autocomplete, and a cleaned-up minimal layout. Prompt execution and event streaming are still pending in the frontend.
+Status: partially complete. The `desktop/` Tauri shell exists with native project selection, backend health, session listing, session title display, right-click session deletion, skill/file autocomplete, prompt execution, basic transcript rendering, and a cleaned-up minimal layout. Rich event streaming and polished diff rendering are still pending.
 
 Next slice:
 - Wire a Tauri-managed `DesktopAgent` instance for the selected workspace.
 - Enable the prompt composer to send one user prompt through `DesktopAgent::send_prompt`.
 - Render a plain transcript with user messages, assistant replies, tool lifecycle events, diffs, and errors.
-- Keep approvals simple at first by allowing read-only tools and denying risky mutation/shell tools until a dedicated approval UI lands.
+- Render a compact approval card for risky mutation/shell tools and continue the agent turn after the user's decision.
 
 Deliverables:
 - Create a separate desktop app shell, likely under `desktop/`.

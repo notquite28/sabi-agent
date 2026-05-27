@@ -77,7 +77,7 @@ cargo run -- --help
 cargo run -- --check-provider
 cargo run -- --resume
 cargo run -- "Say exactly: ok"
-cargo run --example fibonacci
+cargo run --example binary_search
 ```
 
 `--check-provider` makes a real provider call and requires `openai_api_key` in `~/.sabi/auth.toml` or `OPENAI_API_KEY` in the environment.

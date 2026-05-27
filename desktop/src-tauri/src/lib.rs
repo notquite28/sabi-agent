@@ -7,18 +7,24 @@
 //! - Workspace selection is frontend state; commands accept explicit cwd strings.
 //! - Prompt execution returns a batch of events; live event streaming and approval UI can come later.
 
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::mpsc,
+};
 
 use anyhow::Context;
 use sabi_agent::{
+    approval::ToolApprovalRequest,
     config::AppConfig,
     desktop::{DesktopAgent, DesktopOptions, DesktopSessionInfo, DesktopSkillInfo},
     events::AgentEvent,
+    messages::Message,
     session::SessionStore,
     skills,
 };
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 use tokio::sync::Mutex;
 
 const MAX_FILE_SUGGESTIONS: usize = 80;
@@ -42,6 +48,7 @@ struct DesktopFileSuggestion {
 #[derive(Default)]
 struct DesktopAppState {
     agent: Mutex<Option<DesktopAgent>>,
+    approvals: std::sync::Mutex<HashMap<String, mpsc::Sender<bool>>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -49,6 +56,18 @@ struct PromptResponse {
     reply: String,
     events: Vec<AgentEvent>,
     session: DesktopSessionInfo,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SessionTranscriptResponse {
+    session: DesktopSessionInfo,
+    messages: Vec<TranscriptMessage>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TranscriptMessage {
+    role: &'static str,
+    content: String,
 }
 
 impl serde::Serialize for DesktopCommandError {
@@ -122,7 +141,40 @@ async fn start_or_resume_session(
 }
 
 #[tauri::command]
+async fn start_new_session(
+    state: State<'_, DesktopAppState>,
+    cwd: Option<String>,
+) -> Result<DesktopSessionInfo, DesktopCommandError> {
+    let cwd = cwd_from_option(cwd)?;
+    let options = desktop_options_for_cwd(cwd)?;
+    let agent = DesktopAgent::start_new(options).await?;
+    let session = agent.session_info();
+    *state.agent.lock().await = Some(agent);
+    Ok(session)
+}
+
+#[tauri::command]
+async fn resume_session(
+    state: State<'_, DesktopAppState>,
+    cwd: Option<String>,
+    id: String,
+) -> Result<Option<SessionTranscriptResponse>, DesktopCommandError> {
+    let cwd = cwd_from_option(cwd)?;
+    let options = desktop_options_for_cwd(cwd)?;
+    let Some(agent) = DesktopAgent::resume_session(options, &id).await? else {
+        return Ok(None);
+    };
+    let response = SessionTranscriptResponse {
+        session: agent.session_info(),
+        messages: transcript_messages(agent.messages()),
+    };
+    *state.agent.lock().await = Some(agent);
+    Ok(Some(response))
+}
+
+#[tauri::command]
 async fn send_prompt(
+    app: AppHandle,
     state: State<'_, DesktopAppState>,
     cwd: Option<String>,
     prompt: String,
@@ -138,14 +190,36 @@ async fn send_prompt(
     }
     let agent = guard.as_mut().expect("agent initialized above");
     let mut events = Vec::new();
+    let approvals = &state.approvals;
     let reply = agent
-        .send_prompt(&prompt, |event| events.push(event), |_| false)
+        .send_prompt(
+            &prompt,
+            |event| events.push(event),
+            |approval| request_approval(&app, approvals, approval),
+        )
         .await?;
     Ok(PromptResponse {
         reply,
         events,
         session: agent.session_info(),
     })
+}
+
+#[tauri::command]
+fn answer_approval(
+    state: State<'_, DesktopAppState>,
+    id: String,
+    approved: bool,
+) -> Result<(), DesktopCommandError> {
+    if let Some(sender) = state
+        .approvals
+        .lock()
+        .expect("approval lock poisoned")
+        .remove(&id)
+    {
+        let _ = sender.send(approved);
+    }
+    Ok(())
 }
 
 fn cwd_from_option(cwd: Option<String>) -> Result<PathBuf, std::io::Error> {
@@ -159,6 +233,50 @@ fn desktop_options_for_cwd(cwd: PathBuf) -> anyhow::Result<DesktopOptions> {
     Ok(DesktopOptions::from_app_config(AppConfig::load_for_cwd(
         cwd,
     )?))
+}
+
+fn request_approval(
+    app: &AppHandle,
+    approvals: &std::sync::Mutex<HashMap<String, mpsc::Sender<bool>>>,
+    approval: &ToolApprovalRequest,
+) -> bool {
+    let (sender, receiver) = mpsc::channel();
+    approvals
+        .lock()
+        .expect("approval lock poisoned")
+        .insert(approval.id.clone(), sender);
+    if app.emit("tool-approval-requested", approval).is_err() {
+        approvals
+            .lock()
+            .expect("approval lock poisoned")
+            .remove(&approval.id);
+        return false;
+    }
+    receiver.recv().unwrap_or(false)
+}
+
+fn transcript_messages(messages: &[Message]) -> Vec<TranscriptMessage> {
+    messages
+        .iter()
+        .filter_map(|message| match message {
+            Message::System { .. } => None,
+            Message::User { content } => Some(TranscriptMessage {
+                role: "user",
+                content: content.clone(),
+            }),
+            Message::Assistant { content, .. } if content.trim().is_empty() => None,
+            Message::Assistant { content, .. } => Some(TranscriptMessage {
+                role: "assistant",
+                content: content.clone(),
+            }),
+            Message::ToolResult {
+                tool_name, content, ..
+            } => Some(TranscriptMessage {
+                role: "tool",
+                content: format!("{tool_name}: {content}"),
+            }),
+        })
+        .collect()
 }
 
 fn workspace_file_suggestions(
@@ -244,7 +362,10 @@ pub fn run() {
             list_workspace_files,
             delete_session,
             start_or_resume_session,
-            send_prompt
+            start_new_session,
+            resume_session,
+            send_prompt,
+            answer_approval
         ])
         .run(tauri::generate_context!())
         .expect("error while running Sabi Agent desktop application");

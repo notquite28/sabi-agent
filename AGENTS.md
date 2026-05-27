@@ -22,7 +22,7 @@
 - Interactive CLI: `cargo run`.
 - Resume latest non-empty session for the current CWD: `cargo run -- --resume`.
 - Harmless one-shot smoke test: `cargo run -- "Say exactly: ok"`.
-- Example smoke programs: `cargo run --example fibonacci` or `cargo run --example binary_search`.
+- Example smoke program: `cargo run --example binary_search`.
 - Provider smoke test: `cargo run -- --check-provider`; this makes real API calls and requires `openai_api_key` in `~/.sabi/auth.toml` or `OPENAI_API_KEY` in the environment.
 
 ## Provider And Config
