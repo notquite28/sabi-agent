@@ -8,18 +8,20 @@
 //! - Starts with environment variables and defaults only.
 //! - No settings UI, package config, themes, or model registry yet.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
-    pub cwd: std::path::PathBuf,
+    pub cwd: PathBuf,
     pub model: String,
     pub base_url: String,
     pub api_key: String,
 }
 
+/// User-level presets stored in `~/.sabi/config.toml`.
+/// Only non-sensitive fields; API keys stay in env/.env only.
 #[derive(Debug, Default, Deserialize)]
 struct ConfigFile {
     model: Option<String>,
@@ -30,22 +32,33 @@ impl AppConfig {
     pub fn load() -> anyhow::Result<Self> {
         let _ = dotenvy::dotenv();
 
+        // API keys must come from env/.env only — never from config files.
         let api_key = std::env::var("OPENAI_API_KEY")
-            .map_err(|_| anyhow::anyhow!("OPENAI_API_KEY environment variable is required. Set it or create a .env file in the current directory."))?;
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "OPENAI_API_KEY environment variable is required. \
+                     Set it in your environment or create a .env file in the current directory."
+                )
+            })?;
 
-        // Load optional `sabi.toml` from the current directory so that per-project
-        // overrides do not leak into other workspaces.
-        let file_config = load_config_file(std::env::current_dir()?.as_ref());
+        // Load user-level presets from ~/.sabi/config.toml.
+        let user_config = load_user_config();
 
-        let model = file_config
+        // Load optional per-project overrides from sabi.toml in the current directory.
+        let project_config = load_project_config(std::env::current_dir()?.as_ref());
+
+        // Resolution order: project config > user config > env var > default.
+        let model = project_config
             .as_ref()
             .and_then(|c| c.model.clone())
+            .or_else(|| user_config.as_ref().and_then(|c| c.model.clone()))
             .or_else(|| std::env::var("RUST_PI_MODEL").ok())
             .unwrap_or_else(|| "gpt-5.5".to_string());
 
-        let base_url = file_config
+        let base_url = project_config
             .as_ref()
             .and_then(|c| c.base_url.clone())
+            .or_else(|| user_config.as_ref().and_then(|c| c.base_url.clone()))
             .or_else(|| std::env::var("RUST_PI_BASE_URL").ok())
             .unwrap_or_else(|| "https://api.avemujica.moe/v1".to_string());
 
@@ -58,12 +71,35 @@ impl AppConfig {
     }
 }
 
-fn load_config_file(cwd: &Path) -> Option<ConfigFile> {
+fn load_user_config() -> Option<ConfigFile> {
+    let path = user_config_path()?;
+    let contents = std::fs::read_to_string(&path).ok()?;
+    toml::from_str(&contents)
+        .map_err(|e| {
+            eprintln!(
+                "warning: failed to parse user config {}: {e}",
+                path.display()
+            );
+            e
+        })
+        .ok()
+}
+
+fn user_config_path() -> Option<PathBuf> {
+    let project_dirs =
+        directories::ProjectDirs::from("dev", "sabi", "sabi-agent")?;
+    Some(project_dirs.config_local_dir().join("config.toml"))
+}
+
+fn load_project_config(cwd: &Path) -> Option<ConfigFile> {
     let path = cwd.join("sabi.toml");
     let contents = std::fs::read_to_string(&path).ok()?;
     toml::from_str(&contents)
         .map_err(|e| {
-            eprintln!("warning: failed to parse {}: {e}", path.display());
+            eprintln!(
+                "warning: failed to parse project config {}: {e}",
+                path.display()
+            );
             e
         })
         .ok()

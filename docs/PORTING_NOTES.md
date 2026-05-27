@@ -51,13 +51,16 @@ The Rust version should also keep the core agent code reusable for non-terminal 
 
 ## Config Simplification Notes
 
-The Rust version supports three config sources, in order of precedence:
+The Rust version supports four config sources, in order of precedence:
 
 1. `sabi.toml` in the working directory (per-project overrides for `model` and `base_url`).
-2. Environment variables (`RUST_PI_MODEL`, `RUST_PI_BASE_URL`).
-3. Hardcoded defaults (AveMujicaAPI).
+2. `~/.sabi/config.toml` in the user's home directory (user-level defaults).
+3. Environment variables (`RUST_PI_MODEL`, `RUST_PI_BASE_URL`).
+4. Hardcoded defaults (AveMujicaAPI `gpt-5.5`).
 
-`OPENAI_API_KEY` and `EXA_API_KEY` must still come from `.env` or the environment. Invalid `sabi.toml` files print a warning instead of crashing.
+API keys (`OPENAI_API_KEY`, `EXA_API_KEY`) must come from `.env` or the environment only — they are never read from config files. This separation keeps secrets out of version-controlled config files.
+
+Invalid config files print a warning instead of crashing.
 
 ## Skill Simplification Notes
 

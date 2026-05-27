@@ -36,19 +36,45 @@ It also supports:
 
 ## Configuration
 
-Required. For AveMujicaAPI, paste your AveMujicaAPI token here; their docs use the OpenAI-compatible `Authorization: Bearer ...` format:
+## Configuration
+
+### API Keys (Required)
+
+API keys must come from environment variables or a `.env` file in the working directory. They are never stored in config files.
 
 ```bash
 export OPENAI_API_KEY=...
+export EXA_API_KEY=...
 ```
 
-For local development, you can also edit `.env` in the directory where you run the command:
+Or in a `.env` file:
 
 ```dotenv
 OPENAI_API_KEY=...
-RUST_PI_MODEL=gpt-5.5
-RUST_PI_BASE_URL=https://api.avemujica.moe/v1
 EXA_API_KEY=...
+```
+
+### Presets (Optional)
+
+Model and base URL presets are loaded from config files in this order of precedence:
+
+1. **Project-level**: `sabi.toml` in the working directory
+2. **User-level**: `~/.sabi/config.toml`
+3. **Environment**: `RUST_PI_MODEL`, `RUST_PI_BASE_URL`
+4. **Defaults**: `gpt-5.5` at `https://api.avemujica.moe/v1`
+
+Example `~/.sabi/config.toml` (user-level defaults):
+
+```toml
+model = "gpt-5.5"
+base_url = "https://api.avemujica.moe/v1"
+```
+
+Example per-project `sabi.toml` (overrides user-level):
+
+```toml
+model = "gpt-4o-mini"
+base_url = "https://api.openai.com/v1"
 ```
 
 AveMujicaAPI docs:
@@ -57,21 +83,7 @@ AveMujicaAPI docs:
 - Model examples: `gpt-5.5`, or any exact model ID available to your API key
 - Model list endpoint: `https://api.avemujica.moe/v1/models`
 
-Optional:
-
-```bash
-export RUST_PI_MODEL=gpt-4.1-mini
-export RUST_PI_BASE_URL=https://api.openai.com/v1
-```
-
-Optional per-project config via `sabi.toml` in the working directory:
-
-```toml
-model = "gpt-4o-mini"
-base_url = "https://api.openai.com/v1"
-```
-
-`sabi.toml` takes precedence over env vars for `model` and `base_url`. Invalid config files print a warning but do not crash.
+Invalid config files print a warning but do not crash.
 
 `.env` is loaded from the process current working directory. Running with `--manifest-path` from another directory will not automatically load `sabi-agent/.env`; export the variables explicitly if needed.
 

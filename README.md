@@ -41,25 +41,35 @@ cd sabi-agent
 cp .env.example .env
 ```
 
-Current local `.env` keys:
+Current local `.env` keys (API keys only):
 
 ```dotenv
 OPENAI_API_KEY=...
-RUST_PI_MODEL=gpt-5.5
-RUST_PI_BASE_URL=https://api.avemujica.moe/v1
 EXA_API_KEY=...
 ```
 
-Optional per-project config via `sabi.toml` in the working directory:
+Presets (model, base URL) are loaded from config files — never from `.env`:
+
+1. **Project-level**: `sabi.toml` in the working directory
+2. **User-level**: `~/.sabi/config.toml`
+3. **Environment**: `RUST_PI_MODEL`, `RUST_PI_BASE_URL`
+4. **Defaults**: `gpt-5.5` at `https://api.avemujica.moe/v1`
+
+Example `~/.sabi/config.toml`:
+
+```toml
+model = "gpt-5.5"
+base_url = "https://api.avemujica.moe/v1"
+```
+
+Example per-project `sabi.toml`:
 
 ```toml
 model = "gpt-4o-mini"
 base_url = "https://api.openai.com/v1"
 ```
 
-`sabi.toml` overrides env vars for `model` and `base_url` only. `OPENAI_API_KEY` must still come from `.env` or the environment.
-
-Do not commit `.env`; it is ignored.
+Do not commit `.env`, `sabi.toml`, or provider credentials.
 
 `.env` is loaded from the process current working directory. If you run the binary from another directory, export the required variables explicitly or provide a `.env` in that directory.
 
