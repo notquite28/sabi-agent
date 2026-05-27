@@ -4,6 +4,8 @@ A beginner-friendly Rust coding-agent harness.
 
 This repository is a learning project. The goal is to understand and rebuild the essential parts of an agent harness in simple Rust while keeping the original TypeScript Pi agent available as a reference.
 
+![Sabi Agent desktop shell](sabi.png)
+
 ## Layout
 
 - `sabi-agent/` - active Rust implementation.
@@ -29,14 +31,13 @@ The Rust agent currently supports:
 - Readline command history persisted across restarts.
 - First-launch onboarding that guides you through preset configuration.
 - Unit tests for diff logic.
-- Early Tauri desktop shell with backend health, native project selection, file/skill autocomplete, titled session lists, and right-click session deletion.
-- Generated Fibonacci examples used to verify file tools.
+- Early Tauri desktop shell with backend health, native project selection, file/skill autocomplete, titled session lists, right-click session deletion, prompt execution, approval cards, compact tool rows, and collapsible diff rendering.
+- Generated examples used to verify file tools.
 
 Planned next:
 
-- Desktop prompt execution and event streaming.
-- Richer approval UX for risky operations.
-- Chat panel, workspace file tree, and diff viewer in the desktop shell.
+- Richer event streaming and run cancellation in the desktop shell.
+- Workspace file tree and richer editor/diff panes.
 
 ## Setup
 

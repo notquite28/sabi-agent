@@ -175,18 +175,17 @@ Deliverables:
 
 ## Milestone 9: Desktop App Foundation
 
-Status: partially complete. The `desktop/` Tauri shell exists with native project selection, backend health, session listing, session title display, right-click session deletion, skill/file autocomplete, prompt execution, basic transcript rendering, and a cleaned-up minimal layout. Rich event streaming and polished diff rendering are still pending.
+Status: partially complete. The `desktop/` Tauri shell exists with native project selection, backend health, session listing, session title display, right-click session deletion, skill/file autocomplete, prompt execution, approval cards, compact tool rows, collapsible diffs, Tailwind styling, and a cleaned-up minimal layout. Live event streaming, run cancellation, and richer editor/file-tree panes are still pending.
 
 Next slice:
-- Wire a Tauri-managed `DesktopAgent` instance for the selected workspace.
-- Enable the prompt composer to send one user prompt through `DesktopAgent::send_prompt`.
-- Render a plain transcript with user messages, assistant replies, tool lifecycle events, diffs, and errors.
-- Render a compact approval card for risky mutation/shell tools and continue the agent turn after the user's decision.
+- Add run cancellation for active desktop turns.
+- Stream agent events live instead of rendering them after the turn completes.
+- Improve persisted transcript rendering so resumed sessions preserve tool/diff structure.
 
 Deliverables:
 - Create a separate desktop app shell, likely under `desktop/`.
 - Use Tauri for a lightweight Rust-backed desktop app.
-- Use a web UI frontend. The current shell uses Vanilla TypeScript/Vite; React or Svelte can be introduced if UI complexity justifies it.
+- Use a web UI frontend. The current shell uses Vanilla TypeScript/Vite plus Tailwind CSS; React or Svelte can be introduced if UI complexity justifies it.
 - Communicate with the Rust agent engine through Tauri commands or a local API layer.
 - Render structured agent events in the UI.
 

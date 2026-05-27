@@ -41,9 +41,11 @@ type CompletionToken = {
 
 type TranscriptItem = {
   kind: "user" | "assistant" | "event" | "error" | "approval";
+  id?: string;
   title?: string;
   text: string;
   detail?: string;
+  diff?: string;
   approval?: ToolApprovalRequest;
   approvalState?: "pending" | "approved" | "denied";
 };
@@ -272,6 +274,17 @@ function renderTranscript(): void {
         details.innerHTML = `<summary>Details</summary><pre>${escapeHtml(item.detail)}</pre>`;
         row.append(details);
       }
+      if (item.diff) {
+        const details = document.createElement("details");
+        details.className = "transcript-details diff-details";
+        const summary = document.createElement("summary");
+        summary.textContent = "Diff";
+        const pre = document.createElement("pre");
+        pre.className = "diff-view";
+        pre.replaceChildren(...diffLineNodes(item.diff));
+        details.replaceChildren(summary, pre);
+        row.append(details);
+      }
       if (item.kind === "approval" && item.approval) {
         const actions = document.createElement("div");
         actions.className = "approval-actions";
@@ -293,6 +306,21 @@ function renderTranscript(): void {
     }),
   );
   transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+
+function diffLineNodes(patch: string): HTMLSpanElement[] {
+  return patch.split("\n").map((line) => {
+    const span = document.createElement("span");
+    span.textContent = `${line}\n`;
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      span.className = "diff-added";
+    } else if (line.startsWith("-") && !line.startsWith("---")) {
+      span.className = "diff-removed";
+    } else if (line.startsWith("@@")) {
+      span.className = "diff-hunk";
+    }
+    return span;
+  });
 }
 
 async function answerApproval(id: string, approved: boolean): Promise<void> {
@@ -594,8 +622,7 @@ async function sendPrompt(): Promise<void> {
   try {
     const response = await invoke<PromptResponse>("send_prompt", { cwd: state.workspace || null, prompt });
     for (const event of response.events) {
-      const item = transcriptItemFromEvent(event);
-      if (item) state.transcript.push(item);
+      applyAgentEvent(event);
     }
     if (response.reply.trim()) {
       state.transcript.push({ kind: "assistant", title: "Sabi", text: response.reply });
@@ -622,33 +649,63 @@ function upsertSession(session: DesktopSessionInfo): void {
   }
 }
 
-function transcriptItemFromEvent(event: unknown): TranscriptItem | null {
-  if (!event || typeof event !== "object") return null;
+function applyAgentEvent(event: unknown): void {
+  if (!event || typeof event !== "object") return;
   const entries = Object.entries(event as Record<string, unknown>);
   const [kind, payload] = entries[0] || [];
-  if (!kind || !payload || typeof payload !== "object") return null;
+  if (!kind || !payload || typeof payload !== "object") return;
   const data = payload as Record<string, unknown>;
   switch (kind) {
     case "AssistantText":
-      return null;
+      return;
     case "ToolStarted":
-      return { kind: "event", title: `Tool: ${String(data.name || "tool")}`, text: "Started", detail: JSON.stringify(data.args ?? {}, null, 2) };
+      upsertToolItem(String(data.id || ""), {
+        id: String(data.id || ""),
+        kind: "event",
+        title: `Tool: ${String(data.name || "tool")}`,
+        text: "Running",
+        detail: JSON.stringify(data.args ?? {}, null, 2),
+      });
+      return;
     case "ToolFinished":
-      return {
+      upsertToolItem(String(data.id || ""), {
+        id: String(data.id || ""),
         kind: data.is_error ? "error" : "event",
         title: `Tool: ${String(data.name || "tool")}`,
         text: data.is_error ? "Failed" : "Finished",
         detail: String(data.output || ""),
-      };
+      });
+      return;
     case "DiffReady":
-      return { kind: "event", title: `Diff: ${String(data.path || "file")}`, text: "Ready", detail: String(data.patch || data.rendered || "") };
+      state.transcript.push({ kind: "event", title: `Diff: ${String(data.path || "file")}`, text: "Ready", diff: String(data.patch || data.rendered || "") });
+      return;
     case "FileChanged":
-      return { kind: "event", title: "File changed", text: String(data.path || "") };
+      state.transcript.push({ kind: "event", title: "File changed", text: shortPath(String(data.path || "")) });
+      return;
     case "Error":
-      return { kind: "error", title: "Error", text: String(data.message || "") };
+      state.transcript.push({ kind: "error", title: "Error", text: String(data.message || "") });
+      return;
     default:
-      return null;
+      return;
   }
+}
+
+function upsertToolItem(id: string, item: TranscriptItem): void {
+  if (!id) {
+    state.transcript.push(item);
+    return;
+  }
+  const index = state.transcript.findIndex((entry) => entry.id === id);
+  if (index >= 0) {
+    state.transcript[index] = { ...state.transcript[index], ...item };
+  } else {
+    state.transcript.push(item);
+  }
+}
+
+function shortPath(path: string): string {
+  const normalized = path.replace(/\\/g, "/");
+  return normalized.split("/").slice(-2).join("/") || path;
 }
 
 async function openProject(): Promise<void> {

@@ -57,14 +57,13 @@ pub async fn run(args: Value, cwd: &Path) -> Result<ToolOutput> {
 
     let display_path = path.display().to_string();
     let mut events = Vec::new();
-    if let Some(old_content) = old_content {
-        if old_content != new_content {
-            events.push(AgentEvent::DiffReady {
-                path: display_path.clone(),
-                patch: unified_patch(&args.path, &old_content, &new_content),
-                rendered: render_terminal_diff(&old_content, &new_content),
-            });
-        }
+    let old_content = old_content.unwrap_or_default();
+    if old_content != new_content {
+        events.push(AgentEvent::DiffReady {
+            path: display_path.clone(),
+            patch: unified_patch(&args.path, &old_content, &new_content),
+            rendered: render_terminal_diff(&old_content, &new_content),
+        });
     }
     events.push(AgentEvent::FileChanged {
         path: display_path.clone(),

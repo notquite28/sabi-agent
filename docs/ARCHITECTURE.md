@@ -87,7 +87,7 @@ The desktop app is a separate Tauri frontend over the same Rust agent engine.
 Recommended stack:
 
 - Tauri for desktop packaging and Rust integration.
-- Vanilla TypeScript/Vite for the initial shell; React or Svelte can be introduced when UI complexity justifies it.
+- Vanilla TypeScript/Vite with Tailwind CSS for the current shell; React or Svelte can be introduced when UI complexity justifies it.
 - Monaco Editor for Cursor-style file viewing and editing.
 - `xterm.js` for an optional terminal panel.
 - Rust `notify` crate for workspace file watching.
@@ -100,7 +100,7 @@ desktop/
   src-tauri/          # Tauri shell that calls sabi-agent library code.
   src/                # Vite web UI.
     main.ts           # Minimal project/session/composer frontend.
-    styles.css        # Shell styling.
+    styles.css        # Tailwind component layers and shell styling.
     # Future: ChatPanel, FileTree, EditorPanel, DiffViewer, ToolCard.
 ```
 
@@ -113,12 +113,15 @@ Current desktop shell capabilities:
 - Session titles from JSONL metadata, with fallback titles from the first user message.
 - Right-click session deletion through a validated Tauri command.
 - Prompt composer autocomplete for files, slash commands, and skills.
+- Prompt execution through a Tauri-managed `DesktopAgent`.
+- Compact approval cards for `write`, `edit`, and `bash`.
+- Compact tool rows and collapsible diff rendering for structured events.
 
 Pending desktop shell capabilities:
 
-- Prompt execution wiring from the composer to `DesktopAgent::send_prompt`.
-- Streaming/rendering `AgentEvent` values as chat messages, tool cards, diffs, and errors.
-- Desktop approval cards for `write`, `edit`, and `bash`.
+- Live event streaming instead of returning a completed event batch.
+- Run cancellation while an agent turn is active.
+- Richer editor/file-tree panes and side-by-side diffs.
 
 ## Tool Approval In Desktop Mode
 
@@ -131,7 +134,7 @@ Current policy:
 - `write`, `edit`: file mutation, require approval.
 - `bash`: shell execution, require approval with a clear command preview.
 
-The CLI answers these requests with a terminal prompt unless `/fiwb` or `/yolo` is enabled. A desktop frontend should render the same typed request as an approval card and return the user's decision.
+The CLI answers these requests with a terminal prompt unless `/fiwb` or `/yolo` is enabled. The desktop frontend renders the same typed request as an approval card and returns the user's decision through a Tauri command.
 
 ## Tool Design
 
