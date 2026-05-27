@@ -20,6 +20,8 @@ use crate::messages::Message;
 use crate::session::SessionStore;
 use crate::skills::{self, Skill};
 use crate::slash::{self, SlashCommand};
+use crate::system_prompt;
+use crate::tools::builtin_tool_specs;
 
 pub async fn run(
     prompt_words: Vec<String>,
@@ -39,23 +41,36 @@ pub async fn run(
         return Ok(());
     }
 
-    let mut skills = skills::discover(&cwd)?;
+    let mut skills = crate::skills::discover(&cwd)?;
+
+    // Build and inject system prompt as the first message.
+    let system_prompt = system_prompt::build(system_prompt::BuildOptions {
+        cwd: &cwd,
+        tools: &builtin_tool_specs(),
+        skills: &skills,
+    });
 
     let (mut messages, mut session, resumed) = if should_resume {
         match SessionStore::latest(&cwd).await? {
             Some(session) => {
-                let messages = session.load_messages().await?;
+                let mut messages = session.load_messages().await?;
+                inject_system_prompt(&mut messages, &system_prompt);
                 (messages, session, true)
             }
-            None => (Vec::new(), SessionStore::create(&cwd).await?, false),
+            None => {
+                let mut messages = Vec::new();
+                inject_system_prompt(&mut messages, &system_prompt);
+                (messages, SessionStore::create(&cwd).await?, false)
+            }
         }
     } else {
-        (Vec::new(), SessionStore::create(&cwd).await?, false)
+        let mut messages = Vec::new();
+        inject_system_prompt(&mut messages, &system_prompt);
+        (messages, SessionStore::create(&cwd).await?, false)
     };
 
     if !prompt_words.is_empty() {
         let prompt = prompt_words.join(" ");
-        let prompt = prompt_with_skills(&prompt, &skills);
         run_agent_turn_with_events(
             &model,
             &mut messages,
@@ -108,7 +123,7 @@ pub async fn run(
             &model,
             &mut messages,
             &cwd,
-            &prompt_with_skills(trimmed, &skills),
+            trimmed,
             Some(&session),
             render_event,
             |name, args| approve_tool(name, args, fiwb_mode),
@@ -119,12 +134,13 @@ pub async fn run(
     Ok(())
 }
 
-fn prompt_with_skills(prompt: &str, skills: &[Skill]) -> String {
-    let available = skills::format_available(skills);
-    if available.is_empty() {
-        return prompt.to_string();
+fn inject_system_prompt(messages: &mut Vec<Message>, system_prompt: &str) {
+    // If first message is already a system prompt, replace it.
+    if let Some(Message::System { .. }) = messages.first() {
+        messages[0] = Message::system(system_prompt);
+    } else {
+        messages.insert(0, Message::system(system_prompt));
     }
-    format!("{available}\nUser request:\n{prompt}")
 }
 
 fn render_event(event: AgentEvent) {

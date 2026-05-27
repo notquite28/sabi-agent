@@ -102,6 +102,9 @@ pub async fn run_agent_turn_with_events(
 }
 
 async fn persist_message(session: Option<&SessionStore>, message: &Message) -> Result<()> {
+    if matches!(message, Message::System { .. }) {
+        return Ok(());
+    }
     if let Some(session) = session {
         session.append_message(message).await?;
     }

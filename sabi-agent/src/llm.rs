@@ -257,6 +257,12 @@ pub async fn complete_chat_message(
 
 fn to_chat_message(message: &Message) -> ChatMessage {
     match message {
+        Message::System { content } => ChatMessage {
+            role: "system".to_string(),
+            content: Some(content.clone()),
+            tool_call_id: None,
+            tool_calls: None,
+        },
         Message::User { content } => ChatMessage {
             role: "user".to_string(),
             content: Some(content.clone()),

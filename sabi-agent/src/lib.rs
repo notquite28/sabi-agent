@@ -18,4 +18,5 @@ pub mod messages;
 pub mod session;
 pub mod skills;
 pub mod slash;
+pub mod system_prompt;
 pub mod tools;

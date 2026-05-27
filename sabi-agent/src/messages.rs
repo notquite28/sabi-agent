@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "role")]
 pub enum Message {
+    #[serde(rename = "system")]
+    System { content: String },
     #[serde(rename = "user")]
     User { content: String },
     #[serde(rename = "assistant")]
@@ -38,6 +40,12 @@ pub struct ToolCall {
 }
 
 impl Message {
+    pub fn system(content: impl Into<String>) -> Self {
+        Self::System {
+            content: content.into(),
+        }
+    }
+
     pub fn user(content: impl Into<String>) -> Self {
         Self::User {
             content: content.into(),
@@ -75,6 +83,7 @@ impl Message {
 
     pub fn role(&self) -> &'static str {
         match self {
+            Self::System { .. } => "system",
             Self::User { .. } => "user",
             Self::Assistant { .. } => "assistant",
             Self::ToolResult { .. } => "tool",
@@ -83,6 +92,7 @@ impl Message {
 
     pub fn content(&self) -> &str {
         match self {
+            Self::System { content } => content,
             Self::User { content } => content,
             Self::Assistant { content, .. } => content,
             Self::ToolResult { content, .. } => content,
